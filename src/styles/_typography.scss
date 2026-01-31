@@ -1,0 +1,15 @@
+@use "variables";
+
+// Font imports would go here or in index.html
+
+.mono {
+  font-family: variables.$font-mono;
+}
+
+.text-muted {
+  color: variables.$text-muted;
+}
+
+.text-secondary {
+  color: variables.$text-secondary;
+}

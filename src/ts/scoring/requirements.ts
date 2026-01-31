@@ -1,0 +1,1 @@
+// Blind score requirements

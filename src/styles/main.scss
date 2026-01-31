@@ -1,0 +1,36 @@
+@use "variables";
+@use "typography";
+@use "game/typing-area";
+@use "game/score-display";
+@use "game/blind-info";
+@use "game/modifiers";
+@use "game/shop";
+@use "ui/menus";
+@use "ui/modals";
+@use "ui/buttons";
+@use "ui/cards";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  background-color: variables.$bg-primary;
+  color: variables.$text-primary;
+  font-family: variables.$font-sans;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

@@ -1,0 +1,1 @@
+// Word difficulty scaling

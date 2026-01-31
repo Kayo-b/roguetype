@@ -1,0 +1,7 @@
+node_modules
+dist
+.vite
+*.log
+.DS_Store
+ROGUELIKE_TYPING_GAME_PLAN.md
+CORE_FUNCTIONALITY_ARCHITECTURE.md
