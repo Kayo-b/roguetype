@@ -1,1 +1,87 @@
-// Typing area styles
+@use "../variables" as *;
+
+#typingArea {
+  position: relative;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: $spacing-xl;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+#words {
+  font-family: $font-mono;
+  font-size: $font-size-xl;
+  line-height: 2.2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  user-select: none;
+}
+
+.word {
+  display: inline-flex;
+  
+  &.active {
+    // current word being typed
+  }
+  
+  &.typed {
+    opacity: 0.5;
+  }
+}
+
+.char {
+  color: $text-muted;
+  transition: color 0.05s ease;
+  
+  &.correct {
+    color: $text-primary;
+  }
+  
+  &.incorrect {
+    color: $error;
+  }
+  
+  &.extra {
+    color: $error;
+    opacity: 0.7;
+  }
+}
+
+#caret {
+  position: absolute;
+  width: 2px;
+  height: 1.8rem;
+  background-color: $accent-cyan;
+  box-shadow: $glow-cyan;
+  border-radius: 1px;
+  animation: blink 1s infinite;
+  pointer-events: none;
+  transition: left 0.08s ease, top 0.08s ease;
+}
+
+@keyframes blink {
+  0%, 40% {
+    opacity: 1;
+  }
+  50%, 90% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+#hiddenInput {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  top: 0;
+  left: 0;
+}
