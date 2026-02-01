@@ -4,10 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RogueType</title>
-    <link rel="stylesheet" href="./styles/main.scss" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div id="typingArea">
+        <div id="words"></div>
+        <div id="caret"></div>
+      </div>
+      <input
+        id="hiddenInput"
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+      />
+    </div>
     <script type="module" src="./index.ts"></script>
   </body>
 </html>

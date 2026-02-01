@@ -1,13 +1,12 @@
 # RogueType
 
-A run-based typing game inspired by roguelike deckbuilders. Type words to earn chips, build multipliers, collect modifiers, and beat the blinds.
+A run-based typing game inspired by roguelike deckbuilders.
 
 ## Features
 
 - **Run-based progression** - Progress through antes and blinds with increasing difficulty
 - **Scoring system** - Earn chips per word, apply multipliers for massive scores
 - **Modifier system** - Collect modifiers that change how scoring works
-- **Boss blinds** - Special challenges with unique rules
 - **Shop phase** - Buy and sell modifiers between rounds
 
 ## Tech Stack
