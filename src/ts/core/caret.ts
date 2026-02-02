@@ -50,9 +50,10 @@ function positionCaretAtElement(element: HTMLElement): void {
 
   const wordsRect = wordsElement.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
-
-  const left = elementRect.left - wordsRect.left;
-  const top = elementRect.top - wordsRect.top;
+  //harcoded start positions need to be changed to relative-to-string position
+  // or keep it fixed but then number of lines must be constant
+  const left = 30 + (elementRect.left - wordsRect.left);
+  const top = 105 + (elementRect.top - wordsRect.top);
 
   caretElement.style.left = `${left}px`;
   caretElement.style.top = `${top}px`;
@@ -64,8 +65,8 @@ function positionCaretAfterElement(element: HTMLElement): void {
   const wordsRect = wordsElement.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
 
-  const left = elementRect.right - wordsRect.left;
-  const top = elementRect.top - wordsRect.top;
+  const left = 30 + elementRect.right - wordsRect.left;
+  const top = 105 + elementRect.top - wordsRect.top;
 
   caretElement.style.left = `${left}px`;
   caretElement.style.top = `${top}px`;
