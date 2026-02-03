@@ -37,3 +37,5 @@ src/
 ├── styles/         # SCSS stylesheets
 └── assets/         # Audio, fonts, images
 ```
+## Future Aditions
+- consumable/items: precision booster(reduces miss typing penalty) 

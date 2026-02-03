@@ -6,26 +6,26 @@ let wordsElement: HTMLElement | null = null;
 
 export function initDisplay(): void {
   wordsElement = document.getElementById("words");
-  
+
   if (!wordsElement) {
     throw new Error("Words element not found");
   }
-  
+
   renderWords();
 }
 
 function renderWords(): void {
   if (!wordsElement) return;
-  
+
   const words = wordManager.getAll();
   let html = "";
-  
+
   for (let i = 0; i < words.length; i++) {
     html += buildWordHTML(words[i], i);
   }
-  
+
   wordsElement.innerHTML = html;
-  
+
   const firstWord = wordsElement.querySelector('[data-index="0"]');
   if (firstWord) {
     firstWord.classList.add("active");
@@ -34,11 +34,11 @@ function renderWords(): void {
 
 function buildWordHTML(word: string, index: number): string {
   let html = `<div class="word" data-index="${index}">`;
-  
+
   for (const char of word) {
     html += `<span class="char">${char}</span>`;
   }
-  
+
   html += "</div>";
   return html;
 }
@@ -47,7 +47,7 @@ export function updateDisplay(): void {
   const currentIndex = InputState.getCurrentWordIndex();
   const currentInput = InputState.getCurrentInput();
   const currentWord = wordManager.getCurrent(currentIndex);
-  
+
   updateWordDisplay(currentIndex, currentInput, currentWord);
   updateActiveWord(currentIndex);
   updateCaretPosition();
@@ -60,18 +60,18 @@ function updateWordDisplay(
   targetWord: string
 ): void {
   if (!wordsElement) return;
-  
+
   const wordElement = wordsElement.querySelector(
     `[data-index="${wordIndex}"]`
   ) as HTMLElement;
-  
+
   if (!wordElement) return;
-  
+
   const chars = wordElement.querySelectorAll(".char");
-  
+
   for (let i = 0; i < targetWord.length; i++) {
     const char = chars[i] as HTMLElement;
-    
+
     if (i < input.length) {
       if (input[i] === targetWord[i]) {
         char.className = "char correct";
@@ -86,7 +86,7 @@ function updateWordDisplay(
 
 function updateActiveWord(currentIndex: number): void {
   if (!wordsElement) return;
-  
+
   const allWords = wordsElement.querySelectorAll(".word");
   allWords.forEach((word, index) => {
     word.classList.remove("active");
@@ -94,7 +94,7 @@ function updateActiveWord(currentIndex: number): void {
       word.classList.add("typed");
     }
   });
-  
+
   const currentWord = wordsElement.querySelector(
     `[data-index="${currentIndex}"]`
   );

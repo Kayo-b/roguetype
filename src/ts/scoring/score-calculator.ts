@@ -9,8 +9,8 @@ let totalScore = 0;
 
 const BASE_CHAR_CHIPS = 1;
 const PERFECT_WORD_MULT = 1.5;
-const SPEED_BONUS_THRESHOLD = 80; // WPM
-const SPEED_MULT_BONUS = 0.5;
+const SPEED_BONUS_THRESHOLD = 50; // WPM
+const SPEED_MULT_BONUS = 0.1;
 
 const CHAR_VALUES: Record<string, number> = {
   q: 3,
@@ -25,10 +25,10 @@ const CHAR_VALUES: Record<string, number> = {
 };
 
 function getWordLengthBonus(length: number): number {
-  if (length >= 10) return 2.0; 
-  if (length >= 7) return 1.5; 
-  if (length >= 5) return 1.2; 
-  return 1.0; 
+  if (length >= 10) return 2.0;
+  if (length >= 7) return 1.5;
+  if (length >= 5) return 1.2;
+  return 1.0;
 }
 
 export function calculateCharChips(char: string): number {
@@ -60,7 +60,7 @@ export function calculateWordScore(
 
   const wpm = Stats.getWPM();
   if (wpm >= SPEED_BONUS_THRESHOLD) {
-    mult += SPEED_MULT_BONUS;
+    mult += getWpmMul();
   }
 
   const score = Math.round(chips * mult);
@@ -83,6 +83,14 @@ export function calculateWordScore(
 
 export function getTotalChips(): number {
   return totalChips;
+}
+
+export function getWpmMul(): number {
+  const wpm = Stats.getWPM();
+  let wpmMult: number = 0;
+  wpmMult = SPEED_MULT_BONUS * wpm; //(wpm / 10);
+  console.log(wpmMult, 'wpm multi')
+  return wpmMult;
 }
 
 export function getTotalMult(): number {
