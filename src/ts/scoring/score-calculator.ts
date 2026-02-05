@@ -89,7 +89,6 @@ export function getWpmMul(): number {
   const wpm = Stats.getWPM();
   let wpmMult: number = 0;
   wpmMult = SPEED_MULT_BONUS * wpm; //(wpm / 10);
-  console.log(wpmMult, 'wpm multi')
   return wpmMult;
 }
 
