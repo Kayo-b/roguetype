@@ -48,6 +48,13 @@ export function initInputHandler(): void {
     inputEl.focus();
 }
 
+// function flawlessCounter(): void {
+/// the faster the WPM the higher must the flawless multiplier be
+// 10 words completed without errors -> WPM * 2/4/6 + total score
+// }
+let flawless = true;
+let flawlessLevel = 1;
+let wordCount = 0;
 function processInput(char: string): void {
     if (!InputState.getIsActive()) return;
 
@@ -64,6 +71,7 @@ function processInput(char: string): void {
         Stats.recordCorrectChar();
         ScoreCalculator.addCharChips(char);
     } else {
+        flawless = false;
         Stats.recordIncorrectChar();
     }
 
@@ -90,6 +98,13 @@ function handleSpace(): void {
             currentInput,
             wordBackspaces
         );
+
+        wordCount++;
+
+        if(wordCount >= 10) {
+            flawlessLevel *= 2;
+            ScoreCalculator.applyMultBonus(flawlessLevel)
+        }
 
         console.log(`Word: "${currentInput}" → ${wordScore.chips} chips × ${wordScore.mult.toFixed(1)} = ${wordScore.score}${wordScore.isPerfect ? " ⭐" : ""}`);
 

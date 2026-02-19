@@ -38,6 +38,7 @@ export function calculateCharChips(char: string): number {
 
 export function addCharChips(char: string): void {
   const chips = calculateCharChips(char);
+  console.log('CHIPS', chips)
   wordChips += chips;
 }
 
@@ -63,7 +64,7 @@ export function calculateWordScore(
     mult += getWpmMul();
   }
 
-  const score = Math.round(chips * mult);
+  const score = Math.round(chips * mult) * totalMult;
 
   totalChips += chips;
   totalScore += score;
@@ -93,6 +94,7 @@ export function getWpmMul(): number {
 }
 
 export function getTotalMult(): number {
+  console.log('TOTAL MULTI: ', totalMult )
   return totalMult;
 }
 
@@ -101,7 +103,7 @@ export function getTotalScore(): number {
 }
 
 export function applyMultBonus(bonus: number): void {
-  totalMult += bonus;
+  totalMult *= bonus;
 }
 
 export function applyMultMultiplier(multiplier: number): void {

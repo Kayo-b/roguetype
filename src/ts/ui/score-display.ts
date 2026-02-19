@@ -10,8 +10,8 @@ let totalMultiElement: HTMLElement | null = null;
 export function initScoreDisplay(): void {
   multiplierElement = document.getElementById("multi");
   wpmElement = document.getElementById("wpm");
-  scoreElement = document.getElementById("totalMulti");
-  totalMultiElement = document.getElementById("score");
+  totalMultiElement = document.getElementById("totalMulti");
+  scoreElement = document.getElementById("score");
   if (!multiplierElement) throw new Error("multiplier element not found");
   wpmMultiplierDisplay();
   wpmDisplay();
