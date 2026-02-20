@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-webtui-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,27 +7,158 @@
   </head>
   <body>
     <div id="app">
-      <div id="metricsContainer">
-      <div id="wpmArea">
-        <div>WPM:</div><div id="wpm"></div>
+      <div id="layoutShell" box-="square">
+      <div id="layoutGrid">
+        <aside class="sideColumn">
+          <section class="panel" box-="square" shear-="top">
+            <h2 class="panelTitle">Session</h2>
+            <div class="kvRow"><span>Mode</span><span id="modeValue">Regular</span></div>
+            <div class="kvRow"><span>Validation</span><span id="validationValue">Strict</span></div>
+            <div class="kvRow"><span>Set Progress</span><span id="setStatusValue">0/10</span></div>
+            <div class="kvRow"><span>Accuracy</span><span id="accuracyValue">100%</span></div>
+            <div class="kvRow"><span>Status</span><span id="statusLine">Ready</span></div>
+          </section>
+
+          <section class="panel" box-="square" shear-="top">
+            <h2 class="panelTitle">Menu</h2>
+            <div class="buttonRow">
+              <button id="modeRegularBtn" type="button" box-="square">Regular</button>
+              <button id="modeQuizBtn" type="button" box-="square">Quiz</button>
+            </div>
+            <div class="buttonRow">
+              <button id="validationStrictBtn" type="button" box-="square">Strict</button>
+              <button id="validationLooseBtn" type="button" box-="square">Loose</button>
+            </div>
+            <div class="menuSectionLabel">Regular Difficulty</div>
+            <div class="buttonRow buttonRowTriple">
+              <button id="regularDifficultyEasyBtn" type="button" box-="square">Easy</button>
+              <button id="regularDifficultyMediumBtn" type="button" box-="square">Medium</button>
+              <button id="regularDifficultyHardBtn" type="button" box-="square">Hard</button>
+            </div>
+            <div class="menuSectionLabel">Quiz Difficulty</div>
+            <div class="filterGrid">
+              <button id="quizDifficultyAllBtn" type="button" box-="square">Any</button>
+              <button id="quizDifficultyEasyBtn" type="button" box-="square">Easy</button>
+              <button id="quizDifficultyMediumBtn" type="button" box-="square">Medium</button>
+              <button id="quizDifficultyHardBtn" type="button" box-="square">Hard</button>
+            </div>
+            <div class="menuSectionLabel">Themes (Regular + Quiz)</div>
+            <div class="filterGrid">
+              <button id="themeFilterStandard" type="button" box-="square" data-quiz-theme="standard">Standard</button>
+              <button id="themeFilterJavascript" type="button" box-="square" data-quiz-theme="javascript">JavaScript</button>
+              <button id="themeFilterPython" type="button" box-="square" data-quiz-theme="python">Python</button>
+              <button id="themeFilterBash" type="button" box-="square" data-quiz-theme="bash">Bash</button>
+              <button id="themeFilterSql" type="button" box-="square" data-quiz-theme="sql">SQL</button>
+              <button id="themeFilterSqlInjection" type="button" box-="square" data-quiz-theme="sql-injection">SQLi</button>
+              <button id="themeFilterGit" type="button" box-="square" data-quiz-theme="git">Git</button>
+              <button id="themeFilterCustom" type="button" box-="square" data-quiz-theme="custom">Custom</button>
+            </div>
+            <div class="buttonRow">
+              <button id="tipBtn" type="button" box-="square">Tip</button>
+              <button id="submitBtn" type="button" box-="square">Submit</button>
+            </div>
+            <div class="buttonRow">
+              <button id="nextBtn" type="button" box-="square">Next</button>
+              <button id="resetRunBtn" type="button" box-="square">Reset</button>
+            </div>
+            <div class="buttonRow buttonRowSingle">
+              <button id="themeToggleBtn" type="button" box-="square">Bright Mode</button>
+            </div>
+            <div class="buttonRow">
+              <button id="downloadTemplateBtn" type="button" box-="square">Template</button>
+              <button id="importPackageBtn" type="button" box-="square">Import JSON</button>
+            </div>
+          </section>
+        </aside>
+
+        <main id="centerColumn">
+          <section id="hudStrip" box-="square" shear-="top">
+            <div class="metricCard">
+              <span class="metricLabel">Score</span>
+              <span id="scoreValue" class="metricValue scoreValue">0</span>
+            </div>
+            <div class="metricCard">
+              <span class="metricLabel">WPM</span>
+              <span id="wpmValue" class="metricValue">0</span>
+            </div>
+            <div class="metricCard">
+              <span class="metricLabel">Speed</span>
+              <span id="speedMultiValue" class="metricValue">1.00x</span>
+            </div>
+            <div class="metricCard">
+              <span class="metricLabel">Flawless</span>
+              <span id="flawlessMultiValue" class="metricValue">1.00x</span>
+            </div>
+            <div class="metricCard">
+              <span class="metricLabel">Total</span>
+              <span id="totalMultiValue" class="metricValue">1.00x</span>
+            </div>
+            <div class="metricCard">
+              <span class="metricLabel">Gain</span>
+              <span id="lastGainValue" class="metricValue">+0</span>
+            </div>
+          </section>
+
+          <section id="typingTerminal" box-="square" shear-="both">
+            <header id="terminalHeader">
+              <div id="brandingBlock">
+                <pre id="asciiLogo" aria-label="Rogue Type ASCII logo">____   ___   ____ _   _ _____      _____ _   _ ____  _____
+|  _ \ / _ \ / ___| | | | ____|    |_   _| | | |  _ \| ____|
+| |_) | | | | |  _| | | |  _| _____ | | | | | | |_) |  _|
+|  _ &lt;| |_| | |_| | |_| | |__|_____| | | | |_| |  __/| |___
+|_| \_\\___/ \____|\___/|_____|      |_|  \___/|_|   |_____|</pre>
+              </div>
+              <div id="terminalMeta">
+                <div id="terminalDots">
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                </div>
+                <div id="promptTitle">REGULAR MODE</div>
+              </div>
+            </header>
+
+            <section id="promptBlock">
+              <div id="promptContent"></div>
+              <div id="quizTip" class="subtleMessage"></div>
+              <div id="quizFeedback" class="subtleMessage"></div>
+              <div id="answerReveal" class="subtleMessage"></div>
+            </section>
+
+            <section id="typingLaneWrap">
+              <div id="typingLane" tabindex="-1">
+                <span id="typedContent"></span>
+                <span id="laneGhost"></span>
+              </div>
+              <span id="caretMeasure"></span>
+              <div id="caret"></div>
+            </section>
+          </section>
+        </main>
+
+        <aside class="sideColumn">
+          <section class="panel" box-="square" shear-="top">
+            <h2 class="panelTitle">Level Info</h2>
+            <div class="kvRow"><span>Category</span><span id="categoryValue">Text</span></div>
+            <div class="kvRow"><span>Difficulty</span><span id="difficultyValue">-</span></div>
+            <div class="kvRow"><span>Quiz Correct</span><span id="quizStatsValue">0/0</span></div>
+            <div class="kvRow"><span>Themes</span><span id="themeCountValue">5/5</span></div>
+            <div class="kvRow"><span>Flawless Streak</span><span id="flawlessStreakValue">0</span></div>
+          </section>
+
+          <section class="panel" box-="square" shear-="top">
+            <h2 class="panelTitle">General</h2>
+            <p class="smallText">
+              Regular: type the shown line exactly. Quiz: answer syntax prompts from memory.
+            </p>
+            <p class="smallText">
+              Tip is optional. In loose mode, small punctuation misses can still pass with lower score.
+            </p>
+          </section>
+        </aside>
       </div>
-        <div id="speedArea">
-          <div>Speed Multi:</div><div id="multi"></div>
-        </div>
-        <div id="totalMultiArea">
-          <div>Total Multi:</div><div id="totalMulti"></div>
-        </div>
-        <div id="scoreArea">
-          <div>Score:</div><div id="score"></div>
-        </div>
-        <!-- <div id="totalScoreArea">
-          <div>Total Score:</div><div id="totalScore"></div>
-        </div> -->
       </div>
-      <div id="typingArea">
-        <div id="words"></div>
-        <div id="caret"></div>
-      </div>
+
       <input
         id="hiddenInput"
         type="text"
@@ -36,7 +167,9 @@
         autocorrect="off"
         spellcheck="false"
       />
+      <input id="customPackageInput" type="file" accept="application/json" />
     </div>
+
     <script type="module" src="./index.ts"></script>
   </body>
 </html>

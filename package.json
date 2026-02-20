@@ -11,6 +11,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@webtui/css": "^0.1.6",
     "animejs": "^4.0.0",
     "howler": "^2.2.4",
     "zod": "^3.23.0"

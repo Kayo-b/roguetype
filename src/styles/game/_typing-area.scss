@@ -1,74 +1,304 @@
 @use "../variables" as *;
 
-#typingArea {
-  position: relative;
-  max-width: 900px;
-  width: 100%;
+#layoutGrid {
+  display: grid;
+  grid-template-columns: minmax(24ch, 30ch) minmax(0, 1fr) minmax(24ch, 30ch);
+  gap: 1ch;
   margin: 0 auto;
-  padding: $spacing-xl;
+  min-height: calc(100vh - 6lh);
+}
+
+.sideColumn {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 1ch;
+  min-width: 0;
+}
+
+.panel {
+  background: var(--background1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.panelTitle {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0 1ch;
+  background: var(--background2);
+  border-radius: 1px;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  color: var(--foreground0);
+  text-transform: uppercase;
+}
+
+.kvRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--foreground2);
+  font-size: 0.84rem;
+}
+
+.kvRow span:last-child {
+  color: var(--foreground0);
+  text-align: right;
+}
+
+.smallText {
+  color: var(--foreground2);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.buttonRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.buttonRowSingle {
+  grid-template-columns: 1fr;
+}
+
+.buttonRowTriple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.menuSectionLabel {
+  color: var(--foreground2);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 0.2rem;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.buttonRow button,
+.filterGrid button {
+  min-height: 2rem;
+  color: var(--foreground1);
+  transition: color $transition-fast, opacity $transition-fast;
+}
+
+.buttonRow button:disabled,
+.filterGrid button:disabled {
+  color: var(--foreground2);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.buttonRow button.isActive,
+.filterGrid button.isActive {
+  color: var(--foreground0);
+  --box-border-color: var(--foreground1);
+}
+
+#centerColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1ch;
+  min-width: 0;
+}
+
+#typingTerminal {
+  background: var(--background1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-height: 560px;
+}
+
+#terminalHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 1ch;
+  border-bottom: 1px solid var(--background2);
+  padding-bottom: 0.75rem;
+}
+
+#brandingBlock {
+  min-width: 0;
+}
+
+#asciiLogo {
+  margin: 0;
+  white-space: pre;
+  color: var(--foreground2);
+  font-size: 0.58rem;
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+
+#terminalMeta {
+  display: grid;
+  justify-items: end;
+  gap: 0.45rem;
+  padding-top: 0.15rem;
+}
+
+#terminalDots {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 1px;
+  background: var(--foreground1);
+}
+
+.dot:nth-child(2) {
+  opacity: 0.78;
+}
+
+.dot:nth-child(3) {
+  opacity: 0.58;
+}
+
+#promptTitle {
+  font-size: 0.78rem;
+  color: var(--foreground2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+#promptBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.62rem;
+  min-height: 260px;
+}
+
+#promptContent {
+  color: var(--foreground2);
+  font-size: 1.04rem;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.promptChar {
+  color: var(--foreground2);
+}
+
+.promptCharCorrect {
+  color: var(--foreground0);
+}
+
+.promptCharIncorrect {
+  color: #e96666;
+}
+
+.subtleMessage {
+  min-height: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--foreground2);
+}
+
+#answerReveal {
+  color: #d8b464;
+}
+
+#typingLaneWrap {
+  position: relative;
+  border-top: 1px solid var(--background2);
+  padding-top: 0.65rem;
+}
+
+#typingLane {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 300px;
+  min-height: 3.1rem;
+  max-height: 3.1rem;
+  background: var(--background0);
+  border: 1px solid var(--background2);
+  border-radius: 2px;
+  padding: 0.55rem 0.85rem;
+  font-size: 1.02rem;
+  line-height: 1.2;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: hidden;
+  color: var(--foreground0);
+  scrollbar-width: thin;
 }
 
-#words {
-  font-family: $font-mono;
-  font-size: $font-size-xl;
-  line-height: 2.2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: $spacing-sm;
-  user-select: none;
+#typingLane::-webkit-scrollbar {
+  height: 0.4rem;
 }
 
-.word {
+#typingLane::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--foreground2) 55%, transparent);
+}
+
+#laneGhost {
   display: inline-flex;
-  
-  &.active {
-    // current word being typed
-  }
-  
-  &.typed {
-    opacity: 0.5;
-  }
+  align-items: center;
+  line-height: 1.2;
+  color: var(--foreground2);
 }
 
-.char {
-  color: $text-muted;
-  transition: color 0.05s ease;
-  
-  &.correct {
-    color: $text-primary;
-  }
-  
-  &.incorrect {
-    color: $error;
-  }
-  
-  &.extra {
-    color: $error;
-    opacity: 0.7;
-  }
+#typedContent {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+}
+
+.typedChar {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.typedCharCorrect,
+.typedCharNeutral {
+  color: var(--foreground0);
+}
+
+.typedCharIncorrect {
+  color: #e96666;
+}
+
+#caretMeasure {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  white-space: pre;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  font-family: $font-mono;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 #caret {
   position: absolute;
   width: 2px;
-  height: 1.8rem;
-  background-color: $accent-cyan;
-  box-shadow: $glow-cyan;
-  border-radius: 1px;
-  animation: blink 1s infinite;
+  background: var(--foreground2);
+  box-shadow: none;
+  border-radius: 2px;
   pointer-events: none;
-  transition: left 0.08s ease, top 0.08s ease;
+  animation: caretBlink 1s infinite;
+  transition: left 0.05s linear;
 }
 
-@keyframes blink {
-  0%, 40% {
+@keyframes caretBlink {
+  0%,
+  40% {
     opacity: 1;
   }
-  50%, 90% {
+  50%,
+  90% {
     opacity: 0;
   }
   100% {
@@ -77,11 +307,80 @@
 }
 
 #hiddenInput {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+  position: fixed;
+  top: -100px;
+  left: -100px;
   width: 1px;
   height: 1px;
-  top: 0;
-  left: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#customPackageInput {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 1100px) {
+  #layoutGrid {
+    grid-template-columns: 1fr;
+    max-width: 120ch;
+  }
+
+  .sideColumn {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: unset;
+  }
+
+  #typingTerminal {
+    min-height: 500px;
+  }
+}
+
+@media (max-width: 760px) {
+  .sideColumn,
+  .buttonRow,
+  .filterGrid {
+    grid-template-columns: 1fr;
+  }
+
+  #terminalHeader {
+    grid-template-columns: 1fr;
+  }
+
+  #terminalMeta {
+    justify-items: start;
+    gap: 0.35rem;
+  }
+
+  #asciiLogo {
+    font-size: 0.48rem;
+    line-height: 1.12;
+    overflow-x: auto;
+  }
+
+  #promptContent {
+    font-size: 0.98rem;
+    line-height: 1.6;
+  }
+
+  #typingLane {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 560px) {
+  #asciiLogo {
+    display: none;
+  }
+
+  #brandingBlock::before {
+    content: "[ ROGUE-TYPE ]";
+    color: var(--foreground1);
+    font-size: 0.78rem;
+    letter-spacing: 0.09em;
+  }
 }

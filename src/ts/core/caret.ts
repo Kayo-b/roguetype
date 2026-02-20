@@ -1,95 +1,69 @@
-// Cursor rendering and positioning
-import * as InputState from "./input-state";
+import * as GameState from "../game/game-state";
 
 let caretElement: HTMLElement | null = null;
-let wordsElement: HTMLElement | null = null;
+let typingLaneElement: HTMLElement | null = null;
+let caretMeasureElement: HTMLElement | null = null;
+
+let blinkTimeout: number | null = null;
+
+function escapeSpaces(value: string): string {
+  return value.replace(/ /g, "\u00A0");
+}
 
 export function initCaret(): void {
   caretElement = document.getElementById("caret");
-  wordsElement = document.getElementById("words");
+  typingLaneElement = document.getElementById("typingLane");
+  caretMeasureElement = document.getElementById("caretMeasure");
 
-  if (!caretElement || !wordsElement) {
-    throw new Error("Caret or words element not found");
+  if (!caretElement || !typingLaneElement || !caretMeasureElement) {
+    throw new Error("Caret elements not found");
   }
 
   updateCaretPosition();
 }
 
 export function updateCaretPosition(): void {
-  if (!caretElement || !wordsElement) return;
+  if (!caretElement || !typingLaneElement || !caretMeasureElement) return;
 
-  const wordIndex = InputState.getCurrentWordIndex();
-  const charIndex = InputState.getCurrentInput().length;
+  const typedText = GameState.getTypedText();
+  caretMeasureElement.textContent = escapeSpaces(typedText);
 
-  const wordElement = wordsElement.querySelector(
-    `[data-index="${wordIndex}"]`
-  ) as HTMLElement;
+  const contentWidth = caretMeasureElement.getBoundingClientRect().width;
+  const laneWidth = typingLaneElement.clientWidth;
+  const leftPadding = 14;
+  const visibleLimit = Math.max(0, laneWidth - leftPadding - 14);
 
-  if (!wordElement) {
-    caretElement.style.opacity = "0";
-    return;
-  }
-
-  caretElement.style.opacity = "1";
-
-  const chars = wordElement.querySelectorAll(".char");
-
-  if (charIndex < chars.length) {
-    const charElement = chars[charIndex] as HTMLElement;
-    positionCaretAtElement(charElement);
-  } else if (chars.length > 0) {
-    const lastChar = chars[chars.length - 1] as HTMLElement;
-    positionCaretAfterElement(lastChar);
+  if (contentWidth > visibleLimit) {
+    typingLaneElement.scrollLeft = contentWidth - visibleLimit;
   } else {
-    positionCaretAtElement(wordElement);
+    typingLaneElement.scrollLeft = 0;
   }
-}
 
-function positionCaretAtElement(element: HTMLElement): void {
-  if (!caretElement || !wordsElement) return;
-
-  const wordsRect = wordsElement.getBoundingClientRect();
-  const elementRect = element.getBoundingClientRect();
-  //harcoded start positions need to be changed to relative-to-string position
-  // or keep it fixed but then number of lines must be constant
-  const left = 30 + (elementRect.left - wordsRect.left);
-  const top = 105 + (elementRect.top - wordsRect.top);
+  const left = leftPadding + contentWidth - typingLaneElement.scrollLeft;
+  const top = 12;
+  const height = Math.max(20, typingLaneElement.clientHeight - 24);
 
   caretElement.style.left = `${left}px`;
   caretElement.style.top = `${top}px`;
+  caretElement.style.height = `${height}px`;
+  caretElement.style.opacity = "1";
 }
-
-function positionCaretAfterElement(element: HTMLElement): void {
-  if (!caretElement || !wordsElement) return;
-
-  const wordsRect = wordsElement.getBoundingClientRect();
-  const elementRect = element.getBoundingClientRect();
-
-  const left = 30 + elementRect.right - wordsRect.left;
-  const top = 105 + elementRect.top - wordsRect.top;
-
-  caretElement.style.left = `${left}px`;
-  caretElement.style.top = `${top}px`;
-}
-
-let blinkTimeout: number | null = null;
 
 export function restartBlink(): void {
   if (!caretElement) return;
 
   caretElement.style.animation = "none";
-
   void caretElement.offsetHeight;
 
-  if (blinkTimeout) {
-    clearTimeout(blinkTimeout);
+  if (blinkTimeout !== null) {
+    window.clearTimeout(blinkTimeout);
   }
 
   blinkTimeout = window.setTimeout(() => {
     if (caretElement) {
-      caretElement.style.animation = "blink 1s infinite";
+      caretElement.style.animation = "caretBlink 1s infinite";
     }
-  }, 500);
+  }, 120);
 }
 
 export function hideCaret(): void {

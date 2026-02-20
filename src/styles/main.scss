@@ -1,39 +1,80 @@
-@use "variables";
+@use "variables" as *;
 @use "typography";
 @use "game/typing-area";
 @use "game/score-display";
-@use "game/blind-info";
-@use "game/modifiers";
-@use "game/shop";
-@use "ui/menus";
-@use "ui/modals";
-@use "ui/buttons";
-@use "ui/cards";
-@use "ui/score";
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
-html {
-  font-size: 16px;
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+:root {
+  --background0: #010101;
+  --background1: #050505;
+  --background2: #26334b;
+  --background3: #384752;
+  --foreground0: #e6eaee;
+  --foreground1: #8cbae1;
+  --foreground2: #71aada;
 }
 
 body {
-  background-color: variables.$bg-primary;
-  color: variables.$text-primary;
-  font-family: variables.$font-mono;
-  min-height: 100vh;
+  --box-border-color: var(--background2);
+  --box-rounded-radius: 8px;
+  --box-border-width: 1px;
+  --box-double-border-width: 1px;
+  margin: 0;
+  background-color: var(--background0);
+  color: var(--foreground0);
+  font-family: "Cascadia Mono", "JetBrains Mono", "Fira Code", monospace;
+  line-height: 1.4;
 }
 
 #app {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  max-width: 170ch;
+  margin: 0 auto;
+  padding: 1lh 1ch;
+}
+
+#layoutShell {
+  padding: 1ch;
+  background-color: color-mix(in srgb, var(--background0) 96%, transparent);
+}
+
+[box-] {
+  --box-border-color: var(--background2);
+}
+
+[box-]:hover {
+  --box-border-color: var(--foreground2);
+}
+
+[box-]:focus-within {
+  --box-border-color: var(--foreground1);
+}
+
+button {
+  cursor: pointer;
+}
+
+button[box-]:focus-visible {
+  --background1: var(--background2);
+}
+
+@media (max-width: 760px) {
+  #app {
+    padding: 0.7rem;
+  }
+
+  #layoutShell {
+    padding: 0.75ch;
+  }
 }

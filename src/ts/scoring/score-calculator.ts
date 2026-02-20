@@ -1,159 +1,122 @@
-import * as Stats from "../core/stats";
+import * as GameState from "../game/game-state";
+import { getQuizDifficultyWeight } from "../core/quiz-manager";
 
-let wordChips = 0;
-let wordMult = 1;
+interface QuizScoreInput {
+  difficulty: GameState.QuizDifficulty;
+  usedTip: boolean;
+  minorErrors: number;
+}
 
-let totalChips = 0;
-let totalMult = 1;
 let totalScore = 0;
+let totalChips = 0;
 
-const BASE_CHAR_CHIPS = 1;
-const PERFECT_WORD_MULT = 1.5;
-const SPEED_BONUS_THRESHOLD = 50; // WPM
-const SPEED_MULT_BONUS = 0.1;
+let speedMultiplier = 1;
+let flawlessMultiplier = 1;
+let totalMultiplier = 1;
 
 const CHAR_VALUES: Record<string, number> = {
-  q: 3,
-  z: 3,
-  x: 3,
-  j: 2,
-  k: 2,
-  v: 2,
-  w: 2,
-  y: 2,
-  default: 1,
+  q: 5,
+  z: 5,
+  x: 4,
+  j: 4,
+  k: 3,
+  v: 3,
+  w: 3,
+  y: 3,
+  default: 2,
 };
 
-function getWordLengthBonus(length: number): number {
-  if (length >= 10) return 2.0;
-  if (length >= 7) return 1.5;
-  if (length >= 5) return 1.2;
-  return 1.0;
+function roundTo2(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
-export function calculateCharChips(char: string): number {
-  const baseValue = CHAR_VALUES[char.toLowerCase()] ?? CHAR_VALUES.default;
-  return baseValue;
+function syncMultipliers(): void {
+  totalMultiplier = roundTo2(speedMultiplier * flawlessMultiplier);
+  GameState.setSpeedMultiplier(speedMultiplier);
+  GameState.setTotalMultiplier(totalMultiplier);
 }
 
-export function addCharChips(char: string): void {
-  const chips = calculateCharChips(char);
-  console.log('CHIPS', chips)
-  wordChips += chips;
+function recordGain(gain: number, reason: string): number {
+  const safeGain = Math.max(0, Math.round(gain));
+  totalScore += safeGain;
+  GameState.setLastGain(safeGain, reason);
+  return safeGain;
 }
 
-export function calculateWordScore(
-  word: string,
-  typedWord: string,
-  backspacesUsed: number
-): WordScore {
-  let chips = wordChips;
-
-  const lengthBonus = getWordLengthBonus(word.length);
-  chips = Math.round(chips * lengthBonus);
-
-  let mult = wordMult;
-
-  const isPerfect = typedWord === word && backspacesUsed === 0;
-  if (isPerfect) {
-    mult *= PERFECT_WORD_MULT;
-  }
-
-  const wpm = Stats.getWPM();
-  if (wpm >= SPEED_BONUS_THRESHOLD) {
-    mult += getWpmMul();
-  }
-
-  const score = Math.round(chips * mult) * totalMult;
-
-  totalChips += chips;
-  totalScore += score;
-
-  const result: WordScore = {
-    chips,
-    mult,
-    score,
-    isPerfect,
-    lengthBonus,
-  };
-
-  resetWordState();
-
-  return result;
+export function calculateSpeedMultiplier(wpm: number): number {
+  if (wpm <= 0) return 1;
+  return roundTo2(Math.min(3.2, 1 + wpm / 90));
 }
 
-export function getTotalChips(): number {
-  return totalChips;
+export function setSpeedMultiplier(multiplier: number): void {
+  speedMultiplier = Math.max(1, roundTo2(multiplier));
+  syncMultipliers();
 }
 
-export function getWpmMul(): number {
-  const wpm = Stats.getWPM();
-  let wpmMult: number = 0;
-  wpmMult = SPEED_MULT_BONUS * wpm; //(wpm / 10);
-  return wpmMult;
+export function setFlawlessMultiplier(multiplier: number): void {
+  flawlessMultiplier = Math.max(1, roundTo2(multiplier));
+  syncMultipliers();
+}
+
+export function getSpeedMultiplier(): number {
+  return speedMultiplier;
+}
+
+export function getFlawlessMultiplier(): number {
+  return flawlessMultiplier;
 }
 
 export function getTotalMult(): number {
-  console.log('TOTAL MULTI: ', totalMult )
-  return totalMult;
+  return totalMultiplier;
 }
 
 export function getTotalScore(): number {
   return totalScore;
 }
 
-export function applyMultBonus(bonus: number): void {
-  totalMult *= bonus;
+export function getTotalChips(): number {
+  return totalChips;
 }
 
-export function applyMultMultiplier(multiplier: number): void {
-  totalMult *= multiplier;
+export function getCharBaseValue(char: string): number {
+  return CHAR_VALUES[char.toLowerCase()] ?? CHAR_VALUES.default;
 }
 
-export function meetsRequirement(requirement: number): boolean {
-  return totalScore >= requirement;
+export function addRegularCharScore(char: string): number {
+  const base = getCharBaseValue(char);
+  totalChips += base;
+  const gain = base * totalMultiplier;
+  return recordGain(gain, "char");
 }
 
-export interface WordScore {
-  chips: number;
-  mult: number;
-  score: number;
-  isPerfect: boolean;
-  lengthBonus: number;
+export function addRegularSetBonus(wordCount: number, flawlessSet: boolean): number {
+  const base = wordCount * 14;
+  const flawlessBonus = flawlessSet ? 1.4 : 1;
+  return recordGain(base * flawlessBonus * totalMultiplier, "set");
 }
 
-export interface BlindScore {
-  totalChips: number;
-  totalMult: number;
-  totalScore: number;
-  wordsTyped: number;
-  requirement: number;
-  passed: boolean;
+export function addQuizAnswerScore(input: QuizScoreInput): number {
+  const base = 130;
+  const difficultyWeight = getQuizDifficultyWeight(input.difficulty);
+  const tipPenalty = input.usedTip ? 0.85 : 1;
+  const minorErrorPenalty = Math.max(0.6, 1 - input.minorErrors * 0.06);
+
+  return recordGain(
+    base * difficultyWeight * tipPenalty * minorErrorPenalty * totalMultiplier,
+    "quiz"
+  );
 }
 
-export function getBlindScore(
-  wordsTyped: number,
-  requirement: number
-): BlindScore {
-  return {
-    totalChips,
-    totalMult,
-    totalScore,
-    wordsTyped,
-    requirement,
-    passed: totalScore >= requirement,
-  };
-}
-
-function resetWordState(): void {
-  wordChips = 0;
-  wordMult = 1;
+export function recordNoGain(reason: string): void {
+  GameState.setLastGain(0, reason);
 }
 
 export function reset(): void {
-  wordChips = 0;
-  wordMult = 1;
-  totalChips = 0;
-  totalMult = 1;
   totalScore = 0;
+  totalChips = 0;
+  speedMultiplier = 1;
+  flawlessMultiplier = 1;
+  totalMultiplier = 1;
+  syncMultipliers();
+  GameState.setLastGain(0, "reset");
 }

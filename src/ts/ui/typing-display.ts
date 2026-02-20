@@ -1,104 +1,163 @@
-import * as InputState from "../core/input-state";
-import { wordManager } from "../core/word-manager";
+import * as GameState from "../game/game-state";
 import { updateCaretPosition, restartBlink } from "../core/caret";
 
-let wordsElement: HTMLElement | null = null;
+let promptTitleElement: HTMLElement | null = null;
+let promptContentElement: HTMLElement | null = null;
+let typedContentElement: HTMLElement | null = null;
+let laneGhostElement: HTMLElement | null = null;
+let quizTipElement: HTMLElement | null = null;
+let quizFeedbackElement: HTMLElement | null = null;
+let answerRevealElement: HTMLElement | null = null;
+
+function formatThemeForTitle(theme: GameState.QuizTheme): string {
+  return theme === "sql-injection" ? "SQLI" : theme.toUpperCase();
+}
+
+function getPromptWordProgress(input: string): number {
+  const trimmed = input.trim();
+  if (trimmed.length === 0) return 0;
+  return trimmed.split(/\s+/).length;
+}
 
 export function initDisplay(): void {
-  wordsElement = document.getElementById("words");
+  promptTitleElement = document.getElementById("promptTitle");
+  promptContentElement = document.getElementById("promptContent");
+  typedContentElement = document.getElementById("typedContent");
+  laneGhostElement = document.getElementById("laneGhost");
+  quizTipElement = document.getElementById("quizTip");
+  quizFeedbackElement = document.getElementById("quizFeedback");
+  answerRevealElement = document.getElementById("answerReveal");
 
-  if (!wordsElement) {
-    throw new Error("Words element not found");
+  if (
+    !promptTitleElement ||
+    !promptContentElement ||
+    !typedContentElement ||
+    !laneGhostElement ||
+    !quizTipElement ||
+    !quizFeedbackElement ||
+    !answerRevealElement
+  ) {
+    throw new Error("Typing display elements not found");
   }
 
-  renderWords();
+  updateDisplay();
 }
 
-function renderWords(): void {
-  if (!wordsElement) return;
+function renderPromptText(): void {
+  if (!promptContentElement || !promptTitleElement) return;
 
-  const words = wordManager.getAll();
+  const mode = GameState.getMode();
+  const expected = GameState.getExpectedText();
+  const typed = GameState.getTypedText();
+
+  if (mode === "regular") {
+    const regularDifficulty = GameState.getRegularDifficulty().toUpperCase();
+    promptTitleElement.textContent = `REGULAR MODE · ${regularDifficulty}`;
+
+    let html = "";
+    for (let i = 0; i < expected.length; i++) {
+      const expectedChar = expected[i];
+      const typedChar = typed[i];
+      const displayChar = expectedChar === " " ? "&nbsp;" : expectedChar;
+
+      if (typedChar === undefined) {
+        html += `<span class=\"promptChar\">${displayChar}</span>`;
+      } else if (typedChar === expectedChar) {
+        html += `<span class=\"promptChar promptCharCorrect\">${displayChar}</span>`;
+      } else {
+        html += `<span class=\"promptChar promptCharIncorrect\">${displayChar}</span>`;
+      }
+    }
+
+    promptContentElement.innerHTML = html;
+    return;
+  }
+
+  const question = GameState.getCurrentQuizQuestion();
+  const category = question?.theme;
+  const difficulty = question?.difficulty ?? "-";
+  const categoryLabel = category ? formatThemeForTitle(category) : "QUIZ";
+  promptTitleElement.textContent = `QUIZ MODE · ${categoryLabel} · ${difficulty.toUpperCase()}`;
+  promptContentElement.textContent = GameState.getPromptText();
+}
+
+function renderTypedLane(): void {
+  if (!typedContentElement || !laneGhostElement) return;
+
+  const typed = GameState.getTypedText();
+  const expected = GameState.getExpectedText();
+  const mode = GameState.getMode();
+
+  if (typed.length === 0) {
+    typedContentElement.innerHTML = "";
+    laneGhostElement.textContent = "type here...";
+    return;
+  }
+
+  laneGhostElement.textContent = "";
+
   let html = "";
+  for (let i = 0; i < typed.length; i++) {
+    const typedChar = typed[i];
+    const expectedChar = expected[i];
+    const isCorrect = expectedChar !== undefined && typedChar === expectedChar;
+    const className =
+      mode === "quiz"
+        ? "typedChar typedCharNeutral"
+        : isCorrect
+          ? "typedChar typedCharCorrect"
+          : "typedChar typedCharIncorrect";
+    const displayChar = typedChar === " " ? "&nbsp;" : typedChar;
 
-  for (let i = 0; i < words.length; i++) {
-    html += buildWordHTML(words[i], i);
+    html += `<span class=\"${className}\">${displayChar}</span>`;
   }
 
-  wordsElement.innerHTML = html;
-
-  const firstWord = wordsElement.querySelector('[data-index="0"]');
-  if (firstWord) {
-    firstWord.classList.add("active");
-  }
+  typedContentElement.innerHTML = html;
 }
 
-function buildWordHTML(word: string, index: number): string {
-  let html = `<div class="word" data-index="${index}">`;
+function renderQuizMessages(): void {
+  if (!quizTipElement || !quizFeedbackElement || !answerRevealElement) return;
 
-  for (const char of word) {
-    html += `<span class="char">${char}</span>`;
+  const mode = GameState.getMode();
+
+  if (mode !== "quiz") {
+    quizTipElement.textContent = "";
+    quizFeedbackElement.textContent = "";
+    answerRevealElement.textContent = "";
+    return;
   }
 
-  html += "</div>";
-  return html;
+  const question = GameState.getCurrentQuizQuestion();
+  const tip = GameState.getQuizTipVisible() ? `Tip: ${question?.tip ?? ""}` : "";
+  const feedback = GameState.getQuizFeedback();
+  const revealedAnswer = GameState.getRevealedAnswer();
+
+  quizTipElement.textContent = tip;
+  quizFeedbackElement.textContent = feedback;
+  answerRevealElement.textContent = revealedAnswer
+    ? `Correct syntax: ${revealedAnswer}`
+    : "";
+}
+
+function syncSetStatusInline(): void {
+  const setStatusElement = document.getElementById("setStatusValue");
+  if (!setStatusElement) return;
+
+  if (GameState.getMode() === "quiz") {
+    setStatusElement.textContent = "Question input";
+    return;
+  }
+
+  const progress = getPromptWordProgress(GameState.getTypedText());
+  const total = GameState.getWordsPerSet();
+  setStatusElement.textContent = `${Math.min(progress, total)}/${total}`;
 }
 
 export function updateDisplay(): void {
-  const currentIndex = InputState.getCurrentWordIndex();
-  const currentInput = InputState.getCurrentInput();
-  const currentWord = wordManager.getCurrent(currentIndex);
-
-  updateWordDisplay(currentIndex, currentInput, currentWord);
-  updateActiveWord(currentIndex);
+  renderPromptText();
+  renderTypedLane();
+  renderQuizMessages();
+  syncSetStatusInline();
   updateCaretPosition();
   restartBlink();
-}
-
-function updateWordDisplay(
-  wordIndex: number,
-  input: string,
-  targetWord: string
-): void {
-  if (!wordsElement) return;
-
-  const wordElement = wordsElement.querySelector(
-    `[data-index="${wordIndex}"]`
-  ) as HTMLElement;
-
-  if (!wordElement) return;
-
-  const chars = wordElement.querySelectorAll(".char");
-
-  for (let i = 0; i < targetWord.length; i++) {
-    const char = chars[i] as HTMLElement;
-
-    if (i < input.length) {
-      if (input[i] === targetWord[i]) {
-        char.className = "char correct";
-      } else {
-        char.className = "char incorrect";
-      }
-    } else {
-      char.className = "char";
-    }
-  }
-}
-
-function updateActiveWord(currentIndex: number): void {
-  if (!wordsElement) return;
-
-  const allWords = wordsElement.querySelectorAll(".word");
-  allWords.forEach((word, index) => {
-    word.classList.remove("active");
-    if (index < currentIndex) {
-      word.classList.add("typed");
-    }
-  });
-
-  const currentWord = wordsElement.querySelector(
-    `[data-index="${currentIndex}"]`
-  );
-  if (currentWord) {
-    currentWord.classList.add("active");
-  }
 }
