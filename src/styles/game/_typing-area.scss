@@ -2,15 +2,16 @@
 
 #layoutGrid {
   display: grid;
-  grid-template-columns: minmax(24ch, 30ch) minmax(0, 1fr) minmax(24ch, 30ch);
+  grid-template-columns: minmax(24ch, 32ch) minmax(0, 1fr);
   gap: 1ch;
   margin: 0 auto;
   min-height: calc(100vh - 6lh);
+  align-items: start;
 }
 
 .sideColumn {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 1ch;
   min-width: 0;
 }
@@ -53,20 +54,6 @@
   line-height: 1.45;
 }
 
-.buttonRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.55rem;
-}
-
-.buttonRowSingle {
-  grid-template-columns: 1fr;
-}
-
-.buttonRowTriple {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .menuSectionLabel {
   color: var(--foreground2);
   font-size: 0.72rem;
@@ -75,45 +62,40 @@
   margin-top: 0.2rem;
 }
 
-.filterGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.45rem;
-}
-
-.buttonRow button,
-.filterGrid button {
-  min-height: 2rem;
-  color: var(--foreground1);
-  transition: color $transition-fast, opacity $transition-fast;
-}
-
-.buttonRow button:disabled,
-.filterGrid button:disabled {
-  color: var(--foreground2);
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.buttonRow button.isActive,
-.filterGrid button.isActive {
-  color: var(--foreground0);
-  --box-border-color: var(--foreground1);
+.isHidden {
+  display: none !important;
 }
 
 #centerColumn {
   display: flex;
   flex-direction: column;
-  gap: 1ch;
   min-width: 0;
+  min-height: calc(100vh - 8lh);
 }
 
 #typingTerminal {
   background: var(--background1);
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
-  min-height: 560px;
+  gap: 0.7rem;
+  min-height: calc(100vh - 8lh);
+}
+
+#typingTerminal.isRogueLevel {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--rogue-level-accent) 18%, var(--background1)) 0%,
+      var(--background1) 62%
+    );
+}
+
+#typingTerminal.isRogueLevel #promptTitle {
+  color: color-mix(in srgb, var(--rogue-level-accent) 68%, var(--foreground0));
+}
+
+#typingTerminal.isRogueLevel .dot {
+  background: color-mix(in srgb, var(--rogue-level-accent) 74%, var(--foreground1));
 }
 
 #terminalHeader {
@@ -176,7 +158,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.62rem;
-  min-height: 260px;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 #promptContent {
@@ -208,10 +191,50 @@
   color: #d8b464;
 }
 
+#terminalCommandWrap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  border-top: 1px solid var(--background2);
+  padding-top: 0.55rem;
+}
+
+#commandPromptLabel {
+  color: var(--foreground2);
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
+#commandInput {
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px dashed var(--background2);
+  background: transparent;
+  color: var(--foreground0);
+  font-family: $font-mono;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  padding: 0.2rem 0;
+}
+
+#commandInput::placeholder {
+  color: color-mix(in srgb, var(--foreground2) 65%, transparent);
+}
+
+#commandInput:focus {
+  outline: none;
+  border-bottom-color: var(--foreground1);
+}
+
+#commandInput.isInlineTarget {
+  border-bottom-color: var(--foreground1);
+}
+
 #typingLaneWrap {
   position: relative;
   border-top: 1px solid var(--background2);
-  padding-top: 0.65rem;
+  padding-top: 0.5rem;
 }
 
 #typingLane {
@@ -239,6 +262,10 @@
 
 #typingLane::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--foreground2) 55%, transparent);
+}
+
+#typingLane.isInlineTarget {
+  border-color: var(--foreground1);
 }
 
 #laneGhost {
@@ -306,16 +333,6 @@
   }
 }
 
-#hiddenInput {
-  position: fixed;
-  top: -100px;
-  left: -100px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
 #customPackageInput {
   position: fixed;
   width: 1px;
@@ -324,15 +341,170 @@
   pointer-events: none;
 }
 
+.slotBlock {
+  margin: 0;
+  min-height: 4.4lh;
+  max-height: 10lh;
+  overflow: auto;
+  background: var(--background0);
+  border: 1px solid var(--background2);
+  border-radius: 2px;
+  padding: 0.6rem 0.7rem;
+  color: var(--foreground0);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.commandBlock {
+  min-height: 3lh;
+  max-height: 12lh;
+}
+
+#terminalBashPane {
+  display: none;
+  flex-direction: column;
+  gap: 0.6rem;
+  border-top: 1px solid var(--background2);
+  padding-top: 0.55rem;
+  min-height: 0;
+  flex: 1 1 46%;
+}
+
+#typingTerminal.isCommandMode #promptBlock {
+  flex: 1 1 46%;
+  min-height: 0;
+  overflow: auto;
+}
+
+#typingTerminal.isCommandMode #terminalBashPane {
+  display: flex;
+}
+
+#terminalBashHelp {
+  min-height: 7lh;
+  max-height: 14lh;
+}
+
+#commandOutput {
+  min-height: 4lh;
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+.smallText code {
+  font-family: $font-mono;
+  font-size: 0.78rem;
+}
+
+#storeOverlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--background0) 74%, transparent);
+  z-index: 60;
+}
+
+#storeOverlay.isOpen {
+  display: flex;
+}
+
+#storeModal {
+  width: min(104ch, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  background: var(--background1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+#storeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+}
+
+#storeTitle {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#storeCoinsLine {
+  color: var(--foreground2);
+  font-size: 0.84rem;
+}
+
+.storeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+.storeColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.storeSectionTitle {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--foreground2);
+  text-transform: uppercase;
+}
+
+.storeList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.storeCard {
+  background: var(--background0);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.storeCardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.storeCardTitle {
+  color: var(--foreground0);
+  font-size: 0.83rem;
+}
+
+.storeCardDesc {
+  color: var(--foreground2);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.storeCardCost {
+  color: var(--foreground1);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+
+.storeBuyBtn {
+  min-height: 2rem;
+}
+
 @media (max-width: 1100px) {
   #layoutGrid {
     grid-template-columns: 1fr;
     max-width: 120ch;
-  }
-
-  .sideColumn {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: unset;
   }
 
   #typingTerminal {
@@ -341,9 +513,7 @@
 }
 
 @media (max-width: 760px) {
-  .sideColumn,
-  .buttonRow,
-  .filterGrid {
+  .storeGrid {
     grid-template-columns: 1fr;
   }
 

@@ -1,13 +1,12 @@
 import * as GameState from "../game/game-state";
-import { updateCaretPosition, restartBlink } from "../core/caret";
+import * as RogueState from "../game/roguelike-state";
 
 let promptTitleElement: HTMLElement | null = null;
 let promptContentElement: HTMLElement | null = null;
-let typedContentElement: HTMLElement | null = null;
-let laneGhostElement: HTMLElement | null = null;
 let quizTipElement: HTMLElement | null = null;
 let quizFeedbackElement: HTMLElement | null = null;
 let answerRevealElement: HTMLElement | null = null;
+let terminalElement: HTMLElement | null = null;
 
 function formatThemeForTitle(theme: GameState.QuizTheme): string {
   return theme === "sql-injection" ? "SQLI" : theme.toUpperCase();
@@ -16,26 +15,25 @@ function formatThemeForTitle(theme: GameState.QuizTheme): string {
 function getPromptWordProgress(input: string): number {
   const trimmed = input.trim();
   if (trimmed.length === 0) return 0;
-  return trimmed.split(/\s+/).length;
+  const separatorPattern = GameState.getMainTab() === "rogue" ? /_+/ : /\s+/;
+  return trimmed.split(separatorPattern).length;
 }
 
 export function initDisplay(): void {
   promptTitleElement = document.getElementById("promptTitle");
   promptContentElement = document.getElementById("promptContent");
-  typedContentElement = document.getElementById("typedContent");
-  laneGhostElement = document.getElementById("laneGhost");
   quizTipElement = document.getElementById("quizTip");
   quizFeedbackElement = document.getElementById("quizFeedback");
   answerRevealElement = document.getElementById("answerReveal");
+  terminalElement = document.getElementById("typingTerminal");
 
   if (
     !promptTitleElement ||
     !promptContentElement ||
-    !typedContentElement ||
-    !laneGhostElement ||
     !quizTipElement ||
     !quizFeedbackElement ||
-    !answerRevealElement
+    !answerRevealElement ||
+    !terminalElement
   ) {
     throw new Error("Typing display elements not found");
   }
@@ -51,8 +49,15 @@ function renderPromptText(): void {
   const typed = GameState.getTypedText();
 
   if (mode === "regular") {
-    const regularDifficulty = GameState.getRegularDifficulty().toUpperCase();
-    promptTitleElement.textContent = `REGULAR MODE · ${regularDifficulty}`;
+    if (GameState.getMainTab() === "rogue") {
+      const level = RogueState.getCurrentLevel();
+      const levelName = RogueState.getCurrentLevelName();
+      const bossTag = RogueState.isBossLevel() ? " · BOSS" : "";
+      promptTitleElement.textContent = `ROGUE MODE · L${level} ${levelName.toUpperCase()}${bossTag}`;
+    } else {
+      const regularDifficulty = GameState.getRegularDifficulty().toUpperCase();
+      promptTitleElement.textContent = `REGULAR MODE · ${regularDifficulty}`;
+    }
 
     let html = "";
     for (let i = 0; i < expected.length; i++) {
@@ -79,40 +84,6 @@ function renderPromptText(): void {
   const categoryLabel = category ? formatThemeForTitle(category) : "QUIZ";
   promptTitleElement.textContent = `QUIZ MODE · ${categoryLabel} · ${difficulty.toUpperCase()}`;
   promptContentElement.textContent = GameState.getPromptText();
-}
-
-function renderTypedLane(): void {
-  if (!typedContentElement || !laneGhostElement) return;
-
-  const typed = GameState.getTypedText();
-  const expected = GameState.getExpectedText();
-  const mode = GameState.getMode();
-
-  if (typed.length === 0) {
-    typedContentElement.innerHTML = "";
-    laneGhostElement.textContent = "type here...";
-    return;
-  }
-
-  laneGhostElement.textContent = "";
-
-  let html = "";
-  for (let i = 0; i < typed.length; i++) {
-    const typedChar = typed[i];
-    const expectedChar = expected[i];
-    const isCorrect = expectedChar !== undefined && typedChar === expectedChar;
-    const className =
-      mode === "quiz"
-        ? "typedChar typedCharNeutral"
-        : isCorrect
-          ? "typedChar typedCharCorrect"
-          : "typedChar typedCharIncorrect";
-    const displayChar = typedChar === " " ? "&nbsp;" : typedChar;
-
-    html += `<span class=\"${className}\">${displayChar}</span>`;
-  }
-
-  typedContentElement.innerHTML = html;
 }
 
 function renderQuizMessages(): void {
@@ -153,11 +124,23 @@ function syncSetStatusInline(): void {
   setStatusElement.textContent = `${Math.min(progress, total)}/${total}`;
 }
 
+function applyRogueTerminalAccent(): void {
+  if (!terminalElement) return;
+
+  if (GameState.getMainTab() === "rogue") {
+    const accent = RogueState.getCurrentAccentColor();
+    terminalElement.style.setProperty("--rogue-level-accent", accent);
+    terminalElement.classList.add("isRogueLevel");
+    return;
+  }
+
+  terminalElement.style.removeProperty("--rogue-level-accent");
+  terminalElement.classList.remove("isRogueLevel");
+}
+
 export function updateDisplay(): void {
+  applyRogueTerminalAccent();
   renderPromptText();
-  renderTypedLane();
   renderQuizMessages();
   syncSetStatusInline();
-  updateCaretPosition();
-  restartBlink();
 }

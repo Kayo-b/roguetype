@@ -13,6 +13,8 @@ let totalChips = 0;
 let speedMultiplier = 1;
 let flawlessMultiplier = 1;
 let totalMultiplier = 1;
+let flatGainBonus = 0;
+let globalGainMultiplier = 1;
 
 const CHAR_VALUES: Record<string, number> = {
   q: 5,
@@ -37,7 +39,8 @@ function syncMultipliers(): void {
 }
 
 function recordGain(gain: number, reason: string): number {
-  const safeGain = Math.max(0, Math.round(gain));
+  const adjusted = (gain + flatGainBonus) * globalGainMultiplier;
+  const safeGain = Math.max(0, Math.round(adjusted));
   totalScore += safeGain;
   GameState.setLastGain(safeGain, reason);
   return safeGain;
@@ -72,6 +75,22 @@ export function getTotalMult(): number {
 
 export function getTotalScore(): number {
   return totalScore;
+}
+
+export function setFlatGainBonus(bonus: number): void {
+  flatGainBonus = Math.max(0, Math.round(bonus));
+}
+
+export function setGlobalGainMultiplier(multiplier: number): void {
+  globalGainMultiplier = Math.max(0.1, roundTo2(multiplier));
+}
+
+export function getFlatGainBonus(): number {
+  return flatGainBonus;
+}
+
+export function getGlobalGainMultiplier(): number {
+  return globalGainMultiplier;
 }
 
 export function getTotalChips(): number {
@@ -117,6 +136,8 @@ export function reset(): void {
   speedMultiplier = 1;
   flawlessMultiplier = 1;
   totalMultiplier = 1;
+  flatGainBonus = 0;
+  globalGainMultiplier = 1;
   syncMultipliers();
   GameState.setLastGain(0, "reset");
 }

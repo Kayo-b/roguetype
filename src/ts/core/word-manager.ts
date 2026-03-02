@@ -14,6 +14,98 @@ class WordManager {
   private words: string[] = [];
   private customRegularPool: string[] = [];
   private customWordsPerSet: number | null = null;
+  private readonly rogueEarlySequencePool = [
+    "quiet rain drifts across the empty road",
+    "the lantern swings beside a narrow bridge",
+    "dust settles softly on the wooden table",
+    "a distant bell echoes through the valley",
+    "the old painter waits near the bright window",
+    "seven birds circle above the silent field",
+    "paper maps fold back into careful hands",
+    "the market closes before the evening wind",
+    "a silver key rests under the stone step",
+    "footprints vanish near the frozen river",
+    "small waves tap against the dark harbor",
+    "the candle burns until the room turns gold",
+    "four shadows cross the courtyard at noon",
+    "the orchard path bends toward hidden hills",
+    "a soft voice calls from beyond the gate",
+    "the mirror keeps a face from yesterday",
+    "winter clouds crawl over the northern ridge",
+    "the keeper counts stars above the watchtower",
+    "two ravens wait on the broken fence",
+    "a cold letter sleeps inside a locked drawer",
+    "the hallway whispers under careful footsteps",
+    "faint chalk marks line the cellar wall",
+    "the final train leaves before the storm",
+    "dry leaves gather under the iron bench",
+    "the traveler hides a map in her coat",
+    "an empty chair faces the open fireplace",
+    "the last window glows beyond the square",
+    "thin fog climbs the stone staircase",
+    "the attic door creaks in the morning hush",
+    "a red thread trails across the stair",
+    "the river bends around a sleeping town",
+    "an old compass points toward unknown fields",
+    "the tower clock stops at half past nine",
+    "new footsteps cross the moonlit courtyard",
+    "the diary closes with unfinished names",
+    "small sparks drift from the midnight fire",
+  ];
+  private readonly rogueTechSequencePool = [
+    "a hidden process wakes behind the silent daemon",
+    "the cache remembers what the logs forgot",
+    "cold packets drift across a sleeping subnet",
+    "an orphaned thread circles the old scheduler",
+    "checksum ghosts return after the reboot",
+    "the monitor blinks while the stack unwinds",
+    "a stale token opens the sealed gateway",
+    "kernel whispers hide inside the trace buffer",
+    "clock drift bends the timeline of the node",
+    "a phantom session lingers past timeout",
+    "the replica falls one commit behind",
+    "dark fibers hum under the server floor",
+    "a fragile socket waits for one more reply",
+    "the parser stares at a broken payload",
+    "binary fog settles over the data lane",
+    "the daemon writes warnings into cold archives",
+    "low voltage shadows cross the control rack",
+    "an unseen hook rewires the event loop",
+    "backups wake when the primary goes quiet",
+    "the watchdog hears every dropped heartbeat",
+    "a strange signature appears in rotated logs",
+    "dead routes bloom inside a hidden table",
+    "the queue fills faster than morning traffic",
+    "a narrow tunnel links mirror after mirror",
+    "silent workers spin beneath the load balancer",
+    "one final prompt appears in green letters",
+  ];
+  private readonly rogueBashSequencePool = [
+    "cat notes.txt | grep 'mirror'",
+    "cat records.log | grep 'warning' | tail -n 8",
+    "tail -n 50 app.log | grep ERROR",
+    "find . -type f -name '*.log' | xargs wc -l",
+    "find . -type f -name '*.tmp' -delete",
+    "grep -R \"TODO\" src | head -n 20",
+    "ps aux | grep node | grep -v grep",
+    "awk '{print $2}' metrics.txt | sort -nr | head -n 5",
+    "sort access.log | uniq -c | sort -nr | head",
+    "cut -d, -f1 users.csv | sort | uniq",
+    "sed -n '1,40p' config.env",
+    "sed -i 's/debug=false/debug=true/' app.conf",
+    "tar -czf backup.tar.gz project/",
+    "du -sh * | sort -h",
+    "ls -lah /var/log | head -n 15",
+    "chmod +x deploy.sh && ./deploy.sh",
+    "mkdir -p archive/old_logs && mv *.log archive/old_logs",
+    "cat errors.txt | grep -i timeout | wc -l",
+    "head -n 5 secrets.txt | nl -ba",
+    "find . -name '*.ts' | xargs grep -n \"RogueState\"",
+    "curl -s \"$URL\" | jq '.status'",
+    "date && uptime",
+    "echo \"$TOKEN\" | sed 's/./*/g'",
+    "cat text.txt | grep 'something'",
+  ];
 
   private readonly builtInRegularPool = [
     "trace",
@@ -362,6 +454,13 @@ class WordManager {
     return this.words.join(" ");
   }
 
+  createRoguePrompt(level: number, wordCount = 10): string {
+    const safeWordCount = Math.max(1, Math.floor(wordCount));
+    const sourcePool = this.getRogueSequencePool(level);
+    this.words = this.pickSequenceWords(safeWordCount, sourcePool);
+    return this.words.join(" ");
+  }
+
   getCurrentPrompt(): string {
     return this.words.join(" ");
   }
@@ -379,6 +478,78 @@ class WordManager {
   private randomItem(items: string[]): string {
     const index = Math.floor(Math.random() * items.length);
     return items[index];
+  }
+
+  private shuffleItems<T>(items: T[]): T[] {
+    const output = [...items];
+
+    for (let i = output.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = output[i];
+      output[i] = output[j];
+      output[j] = temp;
+    }
+
+    return output;
+  }
+
+  private getRogueSequencePool(level: number): string[] {
+    if (level <= 5) {
+      return this.rogueEarlySequencePool;
+    }
+
+    if (level <= 7) {
+      return [...this.rogueTechSequencePool, ...this.rogueBashSequencePool.slice(0, 12)];
+    }
+
+    return [...this.rogueTechSequencePool, ...this.rogueBashSequencePool];
+  }
+
+  private tokenizeSequence(sequence: string): string[] {
+    return sequence.split(/\s+/).filter((token) => token.length > 0);
+  }
+
+  private pickSequenceWords(wordCount: number, sequencePool: string[]): string[] {
+    if (sequencePool.length === 0) {
+      return this.pickRandomWords(wordCount, "easy", ["standard"]);
+    }
+
+    const output: string[] = [];
+    let available = this.shuffleItems(sequencePool);
+    let previousSequence = "";
+
+    while (output.length < wordCount) {
+      const remaining = wordCount - output.length;
+
+      if (available.length === 0) {
+        available = this.shuffleItems(sequencePool);
+      }
+
+      let chosenIndex = available.findIndex((sequence) => {
+        if (sequence === previousSequence) return false;
+        return this.tokenizeSequence(sequence).length <= remaining;
+      });
+
+      if (chosenIndex < 0) {
+        chosenIndex = available.findIndex((sequence) => sequence !== previousSequence);
+      }
+
+      if (chosenIndex < 0) {
+        chosenIndex = 0;
+      }
+
+      const selected = available.splice(chosenIndex, 1)[0];
+      const selectedTokens = this.tokenizeSequence(selected);
+      const limitedTokens =
+        selectedTokens.length > remaining
+          ? selectedTokens.slice(0, remaining)
+          : selectedTokens;
+
+      output.push(...limitedTokens);
+      previousSequence = selected;
+    }
+
+    return output;
   }
 
   private applyRegularDifficulty(
@@ -530,10 +701,26 @@ class WordManager {
     }
 
     const output: string[] = [];
+    let drawBag = this.shuffleItems(sourcePool);
+    let previousText = "";
 
     for (let i = 0; i < wordCount; i++) {
-      const index = Math.floor(Math.random() * sourcePool.length);
-      const entry = sourcePool[index];
+      if (drawBag.length === 0) {
+        drawBag = this.shuffleItems(sourcePool);
+      }
+
+      let entry = drawBag.pop();
+      if (!entry) {
+        continue;
+      }
+
+      if (entry.text === previousText && drawBag.length > 0) {
+        drawBag.unshift(entry);
+        const nextEntry = drawBag.pop();
+        if (nextEntry) {
+          entry = nextEntry;
+        }
+      }
 
       if (entry.preformatted) {
         output.push(entry.text);
@@ -542,6 +729,8 @@ class WordManager {
           this.applyRegularDifficulty(entry.text, i, wordCount, difficulty)
         );
       }
+
+      previousText = entry.text;
     }
 
     return output;

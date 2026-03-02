@@ -1,5 +1,6 @@
 export type GameMode = "regular" | "quiz";
 export type ValidationMode = "strict" | "loose";
+export type MainTab = "rogue" | "training";
 export type QuizDifficulty = "easy" | "medium" | "hard";
 export type RegularDifficulty = "easy" | "medium" | "hard";
 export type QuizDifficultyFilter = QuizDifficulty | "all";
@@ -36,6 +37,7 @@ export interface QuizQuestion {
 
 let mode: GameMode = "regular";
 let validationMode: ValidationMode = "strict";
+let mainTab: MainTab = "rogue";
 let isActive = false;
 
 let promptText = "";
@@ -95,6 +97,14 @@ export function getValidationMode(): ValidationMode {
 
 export function setValidationMode(nextMode: ValidationMode): void {
   validationMode = nextMode;
+}
+
+export function getMainTab(): MainTab {
+  return mainTab;
+}
+
+export function setMainTab(nextTab: MainTab): void {
+  mainTab = nextTab;
 }
 
 export function getIsActive(): boolean {
