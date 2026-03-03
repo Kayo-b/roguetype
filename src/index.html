@@ -3,153 +3,181 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RogueType</title>
+    <title>Terminal Rogue Type</title>
   </head>
   <body>
     <div id="app">
       <div id="layoutShell" box-="square">
+        <header id="topBar" box-="square">
+          <div id="titleBlock">
+            <pre id="appAsciiLogo" aria-label="Rogue Type ASCII logo">____   ___   ____ _   _ _____      _____ _   _ ____  _____
+|  _ \ / _ \ / ___| | | | ____|    |_   _| | | |  _ \| ____|
+| |_) | | | | |  _| | | |  _| _____ | | | | | | |_) |  _|
+|  _ &lt;| |_| | |_| | |_| | |__|_____| | | | |_| |  __/| |___
+|_| \_\\___/ \____|\___/|_____|      |_|  \___/|_|   |_____|</pre>
+          </div>
+          <div id="topControls">
+            <button id="startRunBtn" type="button" box-="square">Start Run</button>
+            <button id="resetRunBtn" type="button" box-="square">Reset</button>
+            <button id="skipOperationBtn" type="button" box-="square">Skip Probe/Intrude</button>
+          </div>
+        </header>
+
         <div id="layoutGrid">
-          <aside class="sideColumn">
-            <section class="panel" box-="square" shear-="top">
-              <h2 class="panelTitle">Session</h2>
-              <div class="kvRow">
-                <span id="modeLabel">Mode</span><span id="modeValue">Regular</span>
-              </div>
-              <div class="kvRow">
-                <span id="validationLabel">Validation</span><span id="validationValue">Strict</span>
-              </div>
-              <div class="kvRow">
-                <span id="setStatusLabel">Set Progress</span><span id="setStatusValue">0/10</span>
-              </div>
-              <div class="kvRow">
-                <span id="accuracyLabel">Accuracy</span><span id="accuracyValue">100%</span>
-              </div>
-              <div class="kvRow"><span id="statusLabel">Status</span><span id="statusLine">Ready</span></div>
-            </section>
+          <aside class="panel sidePanel" box-="square" shear-="top">
+            <h2 class="panelTitle">Loadout</h2>
 
-            <section class="panel" box-="square" shear-="top">
-              <h2 class="panelTitle">Run Intel</h2>
-              <div class="kvRow"><span id="categoryLabel">Category</span><span id="categoryValue">Text</span></div>
-              <div class="kvRow"><span id="difficultyLabel">Difficulty</span><span id="difficultyValue">-</span></div>
-              <div class="kvRow"><span id="quizStatsLabel">Quiz Correct</span><span id="quizStatsValue">0/0</span></div>
-              <div class="kvRow"><span id="themeCountLabel">Themes</span><span id="themeCountValue">5/5</span></div>
-              <div class="kvRow"><span id="flawlessStreakLabel">Flawless Streak</span><span id="flawlessStreakValue">0</span></div>
-              <div class="menuSectionLabel">Consumable Slots</div>
-              <pre id="rogueItemSlots" class="slotBlock">[1] Empty
-[2] Empty
-[3] Empty</pre>
-              <div class="menuSectionLabel">Module Slots</div>
-              <pre id="rogueModuleSlots" class="slotBlock">[1] Empty
-[2] Empty
-[3] Empty</pre>
-              <div class="menuSectionLabel">Mutator</div>
-              <pre id="rogueMutatorValue" class="slotBlock">Start mutator: Speed x2, separators become underscores</pre>
-            </section>
+            <div class="panelSectionTitle" id="scriptSlotsTitle">Scripts 0/5</div>
+            <div id="scriptSlots" class="slotGrid"></div>
 
-            <section class="panel" box-="square" shear-="top">
-              <h2 class="panelTitle">Commands</h2>
-              <p class="smallText">
-                Use inline commands in the terminal bar. Start with <code>!--help</code>.
-              </p>
-              <p class="smallText">
-                In command mode (`!` as first character), help and command output are shown in the lower terminal pane.
-              </p>
-            </section>
+            <div class="panelSectionTitle" id="commandSlotsTitle">Commands 0/2</div>
+            <div id="commandSlots" class="slotGrid"></div>
+
+            <div class="panelSectionTitle" id="patchSlotsTitle">Patches 0/2</div>
+            <div id="patchSlots" class="slotGrid"></div>
           </aside>
 
           <main id="centerColumn">
             <section id="typingTerminal" box-="square" shear-="both">
               <header id="terminalHeader">
-                <div id="brandingBlock">
-                  <pre id="asciiLogo" aria-label="Rogue Type ASCII logo">____   ___   ____ _   _ _____      _____ _   _ ____  _____
-|  _ \ / _ \ / ___| | | | ____|    |_   _| | | |  _ \| ____|
-| |_) | | | | |  _| | | |  _| _____ | | | | | | |_) |  _|
-|  _ &lt;| |_| | |_| | |_| | |__|_____| | | | |_| |  __/| |___
-|_| \_\\___/ \____|\___/|_____|      |_|  \___/|_|   |_____|</pre>
+                <div>
+                  <div id="promptTitle">Sector 1 · Probe</div>
+                  <div id="promptFirewall">No firewall modifier</div>
                 </div>
-                <div id="terminalMeta">
-                  <div id="terminalDots">
-                    <span class="dot"></span>
-                    <span class="dot"></span>
-                    <span class="dot"></span>
-                  </div>
-                  <div id="promptTitle">REGULAR MODE</div>
+                <div id="hudStrip">
+                  <span class="metricInline"><span class="metricLabel">Run</span><span id="runScoreValue" class="metricValue scoreValue">0</span></span>
+                  <span class="metricInline"><span class="metricLabel">OUT</span><span id="outValue" class="metricValue">0</span></span>
+                  <span class="metricInline"><span class="metricLabel">AMP</span><span id="ampValue" class="metricValue">1.00x</span></span>
+                  <span class="metricInline"><span class="metricLabel">Streak</span><span id="streakValue" class="metricValue">0</span></span>
+                  <span class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
                 </div>
               </header>
 
+              <section id="operationInline" box-="square">
+                <div id="operationInlineTop">
+                  <div class="kvChip"><span>Phase</span><span id="phaseValue">Idle</span></div>
+                  <div class="kvChip"><span>Sector · Op</span><span id="sectorValue">1 · probe</span></div>
+                  <div class="kvChip"><span>Credits</span><span id="creditsValue">4c</span></div>
+                </div>
+
+                <div id="targetLine">
+                  <div class="progressLabel">Score / Target</div>
+                  <div id="targetValue" class="progressValue">0 / 0</div>
+                </div>
+
+                <div class="progressTrack">
+                  <div id="targetFill" class="progressFill"></div>
+                </div>
+
+                <section id="timerWrap">
+                  <div id="timerBar">
+                    <div id="timerFill"></div>
+                  </div>
+                  <div id="timerText">-</div>
+                </section>
+
+                <div id="inlineMetaRows">
+                  <div class="inlineMetaBlock">
+                    <div class="metaLabel">Status</div>
+                    <pre id="statusLine" class="stateBlock">Type `--start to begin.</pre>
+                  </div>
+                  <div class="inlineMetaBlock">
+                    <div class="metaLabel">Last Event</div>
+                    <pre id="lastEventLine" class="stateBlock">-</pre>
+                  </div>
+                </div>
+              </section>
+
               <section id="promptBlock">
                 <div id="promptContent"></div>
-                <div id="quizTip" class="subtleMessage"></div>
-                <div id="quizFeedback" class="subtleMessage"></div>
-                <div id="answerReveal" class="subtleMessage"></div>
-              </section>
-
-              <section id="terminalCommandWrap">
-                <label id="commandPromptLabel" for="commandInput">$</label>
-                <input
-                  id="commandInput"
-                  type="text"
-                  autocomplete="off"
-                  autocapitalize="off"
-                  autocorrect="off"
-                  spellcheck="false"
-                  placeholder="Type prompt text or !--help"
-                />
-              </section>
-
-              <section id="hudStrip">
-                <span class="metricInline"><span class="metricLabel">Score</span><span id="scoreValue" class="metricValue scoreValue">0</span></span>
-                <span class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
-                <span class="metricInline"><span class="metricLabel">Speed</span><span id="speedMultiValue" class="metricValue">1.00x</span></span>
-                <span class="metricInline"><span class="metricLabel">Flawless</span><span id="flawlessMultiValue" class="metricValue">1.00x</span></span>
-                <span class="metricInline"><span class="metricLabel">Total</span><span id="totalMultiValue" class="metricValue">1.00x</span></span>
-                <span class="metricInline"><span class="metricLabel">Gain</span><span id="lastGainValue" class="metricValue">+0</span></span>
+                <div id="scorePopupLayer" aria-live="polite"></div>
               </section>
 
               <section id="terminalBashPane">
-                <pre id="terminalBashHelp" class="slotBlock commandBlock">!--help
-!--rogue / !--training
-!--mode regular|quiz
-!--validation strict|loose
-!--difficulty easy|medium|hard
-!--quiz-difficulty all|easy|medium|hard
-!--theme add|remove|set|reset|list
-!--next !--tip !--submit !--reset !--start
-!--theme-mode dark|bright
-!--template !--import</pre>
-                <pre id="commandOutput" class="slotBlock commandBlock">$ ready</pre>
+                <pre id="commandLive" class="commandBlock">$ [typing mode] Press ` to enter commands</pre>
+                <pre id="commandOutput" class="commandBlock">$ ready
+Use `--start to begin a run.</pre>
               </section>
             </section>
           </main>
         </div>
       </div>
 
+      <div id="briefingOverlay" aria-hidden="true">
+        <section id="briefingModal" box-="square" shear-="top">
+          <header id="briefingHeader">
+            <div>
+              <h2 id="briefingTitle">Operation Briefing</h2>
+              <div id="briefingSubtitle">Sector 1 · Probe</div>
+            </div>
+            <button id="briefingCloseBtn" type="button" box-="square">Deploy</button>
+          </header>
+
+          <div id="briefingMetaGrid">
+            <div class="briefingMetaCard">
+              <div class="briefingMetaLabel">Target Score</div>
+              <div id="briefingTarget" class="briefingMetaValue">0</div>
+            </div>
+            <div class="briefingMetaCard">
+              <div class="briefingMetaLabel">Time Limit</div>
+              <div id="briefingTime" class="briefingMetaValue">0s</div>
+            </div>
+            <div class="briefingMetaCard">
+              <div class="briefingMetaLabel">Skip Allowed</div>
+              <div id="briefingSkip" class="briefingMetaValue">No</div>
+            </div>
+          </div>
+
+          <div class="briefingBlockTitle">Active Modifier / Debuff</div>
+          <div id="briefingDebuffs" class="briefingList"></div>
+
+          <div class="briefingBlockTitle">Notes</div>
+          <ul id="briefingNotes" class="briefingNotes">
+            <li>Type directly on the prompt line.</li>
+            <li>Use backtick (`) to enter command mode.</li>
+            <li>Use Ctrl+1..9 to trigger command slots.</li>
+          </ul>
+        </section>
+      </div>
+
       <div id="storeOverlay" aria-hidden="true">
         <section id="storeModal" box-="square" shear-="top">
           <header id="storeHeader">
             <div>
-              <h2 id="storeTitle">Rogue Store</h2>
-              <div id="storeCoinsLine">Coins: <span id="storeCoinsValue">0</span></div>
+              <h2 id="storeTitle">Black Market Terminal</h2>
+              <div id="storeCreditsLine">Credits: <span id="storeCreditsValue">0c</span></div>
             </div>
-            <button id="storeCloseBtn" type="button" box-="square">Start Next Level</button>
+            <div id="storeActions">
+              <button id="storeRerollBtn" type="button" box-="square">REROLL 5c</button>
+              <button id="storeCloseBtn" type="button" box-="square">Start Next Sector</button>
+            </div>
           </header>
 
           <div class="storeGrid">
             <section class="storeColumn">
-              <h3 class="storeSectionTitle">Consumables</h3>
-              <div id="storeItemsList" class="storeList"></div>
+              <h3 class="storeSectionTitle">Scripts</h3>
+              <div id="storeScripts" class="storeList"></div>
             </section>
+
             <section class="storeColumn">
-              <h3 class="storeSectionTitle">Modules</h3>
-              <div id="storeModulesList" class="storeList"></div>
+              <h3 class="storeSectionTitle">Commands</h3>
+              <div id="storeCommands" class="storeList"></div>
+            </section>
+
+            <section class="storeColumn">
+              <h3 class="storeSectionTitle">Patches</h3>
+              <div id="storePatches" class="storeList"></div>
+            </section>
+
+            <section class="storeColumn">
+              <h3 class="storeSectionTitle">License (1/sector)</h3>
+              <div id="storeLicense" class="storeList"></div>
             </section>
           </div>
 
-          <div id="storeStatus" class="subtleMessage">Buy items and modules before the next level.</div>
+          <div id="storeStatus" class="subtleMessage">Shop open.</div>
         </section>
       </div>
-
-      <input id="customPackageInput" type="file" accept="application/json" />
     </div>
 
     <script type="module" src="./index.ts"></script>
