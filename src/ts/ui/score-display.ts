@@ -1,7 +1,10 @@
 import * as Stats from "../core/stats";
 import * as RogueState from "../game/roguelike-state";
 
+const BEST_RUN_SCORE_STORAGE_KEY = "roguetype.bestRunScore";
+
 let runScoreElement: HTMLElement | null = null;
+let bestScoreElement: HTMLElement | null = null;
 let outValueElement: HTMLElement | null = null;
 let ampValueElement: HTMLElement | null = null;
 let streakValueElement: HTMLElement | null = null;
@@ -18,6 +21,35 @@ let phaseValueElement: HTMLElement | null = null;
 let scriptSlotsElement: HTMLElement | null = null;
 let commandSlotsElement: HTMLElement | null = null;
 let patchSlotsElement: HTMLElement | null = null;
+let bestRunScore = 0;
+let bestRunScoreLoaded = false;
+
+function readStoredBestRunScore(): number {
+  try {
+    const raw = localStorage.getItem(BEST_RUN_SCORE_STORAGE_KEY);
+    if (!raw) return 0;
+
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+  } catch {
+    return 0;
+  }
+}
+
+function writeStoredBestRunScore(value: number): void {
+  try {
+    localStorage.setItem(BEST_RUN_SCORE_STORAGE_KEY, String(Math.max(0, Math.floor(value))));
+  } catch {
+    // Ignore storage failures (private mode / blocked storage).
+  }
+}
+
+function ensureBestRunScoreLoaded(): void {
+  if (bestRunScoreLoaded) return;
+  bestRunScore = readStoredBestRunScore();
+  bestRunScoreLoaded = true;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -31,6 +63,7 @@ function escapeHtml(value: string): string {
 function updateMainMetrics(): void {
   if (
     !runScoreElement ||
+    !bestScoreElement ||
     !outValueElement ||
     !ampValueElement ||
     !streakValueElement ||
@@ -39,7 +72,16 @@ function updateMainMetrics(): void {
     return;
   }
 
-  runScoreElement.textContent = RogueState.getRunScore().toLocaleString();
+  ensureBestRunScoreLoaded();
+
+  const runScore = RogueState.getRunScore();
+  if (runScore > bestRunScore) {
+    bestRunScore = runScore;
+    writeStoredBestRunScore(bestRunScore);
+  }
+
+  runScoreElement.textContent = runScore.toLocaleString();
+  bestScoreElement.textContent = bestRunScore.toLocaleString();
   outValueElement.textContent = Math.round(RogueState.getOutValue()).toLocaleString();
   ampValueElement.textContent = `${RogueState.getAmpValue().toFixed(2)}x`;
   streakValueElement.textContent = String(RogueState.getCleanChain());
@@ -92,36 +134,27 @@ function updateOperationState(): void {
 function renderScriptSlots(): void {
   if (!scriptSlotsElement) return;
 
-  const defs = RogueState.getScriptDefinitions();
   const loadout = RogueState.getScriptLoadout();
   const capacity = RogueState.getScriptSlotCapacityValue();
 
-  const cards = loadout.map((script) => {
+  const chips = loadout.map((script) => {
     const sale = RogueState.getScriptSaleValue(script.id);
-    return `<article class="slotCard">
-      <div class="slotCardHead">
-        <div class="slotName">${escapeHtml(script.label)}</div>
-        <button type="button" class="miniBtn" data-sell-script="${script.id}">SELL ${sale}</button>
-      </div>
-      <div class="slotDesc">${escapeHtml(script.description)}</div>
-      <div class="slotTier">${escapeHtml(script.tier)}</div>
+    return `<article class="slotChip" title="${escapeHtml(script.description)}">
+      <div class="slotName">${escapeHtml(script.label)}</div>
+      <button type="button" class="miniBtn" data-sell-script="${script.id}">SELL ${sale}</button>
     </article>`;
   });
 
   const emptyCount = Math.max(0, capacity - loadout.length);
   for (let i = 0; i < emptyCount; i += 1) {
-    cards.push('<article class="slotCard isEmpty">[ empty script slot ]</article>');
+    chips.push('<article class="slotChip isEmpty">[empty]</article>');
   }
 
-  scriptSlotsElement.innerHTML = cards.join("");
+  scriptSlotsElement.innerHTML = chips.join("");
 
   const title = document.getElementById("scriptSlotsTitle");
   if (title) {
     title.textContent = `Scripts ${loadout.length}/${capacity}`;
-  }
-
-  if (Object.keys(defs).length === 0) {
-    scriptSlotsElement.innerHTML = "";
   }
 }
 
@@ -132,24 +165,21 @@ function renderCommandSlots(): void {
   const defs = RogueState.getCommandDefinitions();
   const phase = RogueState.getPhase();
 
-  const cards = slots.map((commandId, index) => {
+  const chips = slots.map((commandId, index) => {
     if (!commandId) {
-      return '<article class="slotCard isEmpty">[ empty command slot ]</article>';
+      return '<article class="slotChip isEmpty">[empty]</article>';
     }
 
     const def = defs[commandId];
     const disabled = phase !== "operation" ? "disabled" : "";
 
-    return `<article class="slotCard">
-      <div class="slotCardHead">
-        <div class="slotName">${escapeHtml(def.label)}</div>
-        <button type="button" class="miniBtn" data-use-command-slot="${index}" ${disabled}>USE</button>
-      </div>
-      <div class="slotDesc">${escapeHtml(def.description)}</div>
+    return `<article class="slotChip" title="${escapeHtml(def.description)}">
+      <div class="slotName">${escapeHtml(def.label)}</div>
+      <button type="button" class="miniBtn" data-use-command-slot="${index}" ${disabled}>USE</button>
     </article>`;
   });
 
-  commandSlotsElement.innerHTML = cards.join("");
+  commandSlotsElement.innerHTML = chips.join("");
 
   const title = document.getElementById("commandSlotsTitle");
   if (title) {
@@ -166,23 +196,20 @@ function renderPatchSlots(): void {
     (id) => stacks[id] > 0
   );
 
-  const cards = entries.map((id) => {
+  const chips = entries.map((id) => {
     const def = defs[id];
-    return `<article class="slotCard">
-      <div class="slotCardHead">
-        <div class="slotName">${escapeHtml(def.label)}</div>
-        <div class="stackBadge">x${stacks[id]}</div>
-      </div>
-      <div class="slotDesc">${escapeHtml(def.description)}</div>
+    return `<article class="slotChip" title="${escapeHtml(def.description)}">
+      <div class="slotName">${escapeHtml(def.label)}</div>
+      <div class="stackBadge">x${stacks[id]}</div>
     </article>`;
   });
 
   const emptyCount = Math.max(0, RogueState.getPatchSlotCapacityValue() - entries.length);
   for (let i = 0; i < emptyCount; i += 1) {
-    cards.push('<article class="slotCard isEmpty">[ empty patch slot ]</article>');
+    chips.push('<article class="slotChip isEmpty">[empty]</article>');
   }
 
-  patchSlotsElement.innerHTML = cards.join("");
+  patchSlotsElement.innerHTML = chips.join("");
 
   const title = document.getElementById("patchSlotsTitle");
   if (title) {
@@ -192,6 +219,7 @@ function renderPatchSlots(): void {
 
 export function initScoreDisplay(): void {
   runScoreElement = document.getElementById("runScoreValue");
+  bestScoreElement = document.getElementById("bestScoreValue");
   outValueElement = document.getElementById("outValue");
   ampValueElement = document.getElementById("ampValue");
   streakValueElement = document.getElementById("streakValue");
@@ -209,7 +237,7 @@ export function initScoreDisplay(): void {
   commandSlotsElement = document.getElementById("commandSlots");
   patchSlotsElement = document.getElementById("patchSlots");
 
-  if (!runScoreElement || !targetValueElement || !scriptSlotsElement) {
+  if (!runScoreElement || !bestScoreElement || !targetValueElement || !scriptSlotsElement) {
     throw new Error("Score display elements not found");
   }
 

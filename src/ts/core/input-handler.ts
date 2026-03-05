@@ -2,6 +2,7 @@ import * as Stats from "./stats";
 import * as RogueState from "../game/roguelike-state";
 import { updateDisplay } from "../ui/typing-display";
 import { updateScoreDisplay } from "../ui/score-display";
+import { playLetterThock, playPerfectWordAccent, primeGameAudio } from "../audio/game-sfx";
 
 const COMMAND_HELP =
   "Commands: `--start `--reset `--skip `--shop `--continue `--use <slot> `--help";
@@ -35,6 +36,8 @@ let briefingOpen = false;
 let briefingOpenedAt = 0;
 let lastBriefedOperationKey = "";
 let briefingRemainingMsSnapshot = 0;
+let lastRenderedPhase: RogueState.RoguePhase | null = null;
+let lastRenderedOperationKey = "";
 
 let commandMode = false;
 let commandBuffer = "";
@@ -122,11 +125,31 @@ function resetRun(): void {
   renderAll();
 }
 
+function interpolateHsl(from: [number, number, number], to: [number, number, number], t: number): string {
+  const clamped = Math.max(0, Math.min(1, t));
+  const h = from[0] + (to[0] - from[0]) * clamped;
+  const s = from[1] + (to[1] - from[1]) * clamped;
+  const l = from[2] + (to[2] - from[2]) * clamped;
+  return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
+}
+
+function getTimerFillColor(ratio: number): string {
+  const clamped = Math.max(0, Math.min(1, ratio));
+  if (clamped >= 0.5) {
+    const t = (1 - clamped) / 0.5;
+    return interpolateHsl([132, 78, 43], [34, 90, 52], t);
+  }
+
+  const t = (0.5 - clamped) / 0.5;
+  return interpolateHsl([34, 90, 52], [2, 86, 56], t);
+}
+
 function updateTimerStrip(): void {
   if (!timerFillElement || !timerTextElement) return;
 
   if (!RogueState.isOperationActive()) {
     timerFillElement.style.width = "0%";
+    timerFillElement.style.backgroundColor = getTimerFillColor(1);
     timerTextElement.textContent = "-";
     return;
   }
@@ -138,14 +161,10 @@ function updateTimerStrip(): void {
   const ratio = totalMs <= 0 ? 0 : Math.max(0, Math.min(1, remainingMs / totalMs));
 
   timerFillElement.style.width = `${Math.round(ratio * 100)}%`;
+  timerFillElement.style.backgroundColor = getTimerFillColor(ratio);
 
   const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
   timerTextElement.textContent = `${seconds}s`;
-
-  const timerWrap = document.getElementById("timerWrap");
-  if (timerWrap) {
-    timerWrap.classList.toggle("isCritical", seconds <= 10);
-  }
 }
 
 function renderPopups(): void {
@@ -181,7 +200,25 @@ function positionPopupLayerAtCursor(): void {
   popupLayerElement.style.top = `${top}px`;
 }
 
+function keepViewportPinnedToTopOnRoundChange(): void {
+  const phase = RogueState.getPhase();
+  const operationKey = RogueState.isOperationActive()
+    ? `${RogueState.getCurrentSector()}-${RogueState.getCurrentOperationInSector()}`
+    : "";
+
+  const phaseChanged = phase !== lastRenderedPhase;
+  const operationChanged = operationKey !== lastRenderedOperationKey;
+
+  if ((phaseChanged || operationChanged) && window.scrollY > 0) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
+  lastRenderedPhase = phase;
+  lastRenderedOperationKey = operationKey;
+}
+
 function renderAll(): void {
+  keepViewportPinnedToTopOnRoundChange();
   updateDisplay();
   updateScoreDisplay();
   updateTimerStrip();
@@ -207,6 +244,16 @@ function processTypedChar(char: string): void {
 
   const now = performance.now();
   const result = RogueState.typeChar(char, now, Stats.getWPM());
+
+  if (result.accepted && char !== " ") {
+    playLetterThock();
+  }
+
+  if (result.wordCompleted && result.perfectWord) {
+    const ampLevel = result.ampLevel ?? RogueState.getAmpValue();
+    const cleanChain = result.cleanChain ?? RogueState.getCleanChain();
+    playPerfectWordAccent(ampLevel, cleanChain);
+  }
 
   if (result.accepted && result.correct) {
     Stats.recordCorrectChar();
@@ -568,14 +615,17 @@ function bindTopControls(): void {
   const skipOperationBtn = document.getElementById("skipOperationBtn") as HTMLButtonElement | null;
 
   startRunBtn?.addEventListener("click", () => {
+    primeGameAudio();
     startRun();
   });
 
   resetRunBtn?.addEventListener("click", () => {
+    primeGameAudio();
     resetRun();
   });
 
   skipOperationBtn?.addEventListener("click", () => {
+    primeGameAudio();
     const result = RogueState.skipCurrentOperation(performance.now());
     setCommandOutput("skip", result.message);
     renderAll();
@@ -638,6 +688,8 @@ function bindKeyboardCapture(): void {
     if (isEditableTarget(event.target)) {
       return;
     }
+
+    primeGameAudio();
 
     if (briefingOpen) {
       if (event.key === "Enter" || event.key === "Escape") {

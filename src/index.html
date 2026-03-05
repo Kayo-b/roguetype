@@ -24,28 +24,15 @@
         </header>
 
         <div id="layoutGrid">
-          <aside class="panel sidePanel" box-="square" shear-="top">
-            <h2 class="panelTitle">Loadout</h2>
-
-            <div class="panelSectionTitle" id="scriptSlotsTitle">Scripts 0/5</div>
-            <div id="scriptSlots" class="slotGrid"></div>
-
-            <div class="panelSectionTitle" id="commandSlotsTitle">Commands 0/2</div>
-            <div id="commandSlots" class="slotGrid"></div>
-
-            <div class="panelSectionTitle" id="patchSlotsTitle">Patches 0/2</div>
-            <div id="patchSlots" class="slotGrid"></div>
-          </aside>
-
           <main id="centerColumn">
             <section id="typingTerminal" box-="square" shear-="both">
               <header id="terminalHeader">
                 <div>
                   <div id="promptTitle">Sector 1 · Probe</div>
-                  <div id="promptFirewall">No firewall modifier</div>
                 </div>
                 <div id="hudStrip">
                   <span class="metricInline"><span class="metricLabel">Run</span><span id="runScoreValue" class="metricValue scoreValue">0</span></span>
+                  <span class="metricInline"><span class="metricLabel">Best</span><span id="bestScoreValue" class="metricValue scoreValue">0</span></span>
                   <span class="metricInline"><span class="metricLabel">OUT</span><span id="outValue" class="metricValue">0</span></span>
                   <span class="metricInline"><span class="metricLabel">AMP</span><span id="ampValue" class="metricValue">1.00x</span></span>
                   <span class="metricInline"><span class="metricLabel">Streak</span><span id="streakValue" class="metricValue">0</span></span>
@@ -54,12 +41,6 @@
               </header>
 
               <section id="operationInline" box-="square">
-                <div id="operationInlineTop">
-                  <div class="kvChip"><span>Phase</span><span id="phaseValue">Idle</span></div>
-                  <div class="kvChip"><span>Sector · Op</span><span id="sectorValue">1 · probe</span></div>
-                  <div class="kvChip"><span>Credits</span><span id="creditsValue">4c</span></div>
-                </div>
-
                 <div id="targetLine">
                   <div class="progressLabel">Score / Target</div>
                   <div id="targetValue" class="progressValue">0 / 0</div>
@@ -75,17 +56,6 @@
                   </div>
                   <div id="timerText">-</div>
                 </section>
-
-                <div id="inlineMetaRows">
-                  <div class="inlineMetaBlock">
-                    <div class="metaLabel">Status</div>
-                    <pre id="statusLine" class="stateBlock">Type `--start to begin.</pre>
-                  </div>
-                  <div class="inlineMetaBlock">
-                    <div class="metaLabel">Last Event</div>
-                    <pre id="lastEventLine" class="stateBlock">-</pre>
-                  </div>
-                </div>
               </section>
 
               <section id="promptBlock">
@@ -100,6 +70,53 @@ Use `--start to begin a run.</pre>
               </section>
             </section>
           </main>
+
+          <aside class="panel sidePanel" box-="square" shear-="top">
+            <h2 class="panelTitle">Loadout</h2>
+            <div id="loadoutRows">
+              <div class="loadoutRow">
+                <div class="panelSectionTitle" id="scriptSlotsTitle">Scripts 0/3</div>
+                <div id="scriptSlots" class="slotGrid"></div>
+              </div>
+
+              <div class="loadoutRow">
+                <div class="panelSectionTitle" id="commandSlotsTitle">Commands 0/2</div>
+                <div id="commandSlots" class="slotGrid"></div>
+              </div>
+
+              <div class="loadoutRow">
+                <div class="panelSectionTitle" id="patchSlotsTitle">Patches 0/2</div>
+                <div id="patchSlots" class="slotGrid"></div>
+              </div>
+            </div>
+          </aside>
+
+          <aside id="statsPanel" class="panel sidePanel" box-="square" shear-="top">
+            <h2 class="panelTitle">Stats</h2>
+
+            <div id="statsChipGrid">
+              <div class="kvChip"><span>Phase</span><span id="phaseValue">Idle</span></div>
+              <div class="kvChip"><span>Sector · Op</span><span id="sectorValue">1 · probe</span></div>
+              <div class="kvChip"><span>Credits</span><span id="creditsValue">4c</span></div>
+            </div>
+
+            <div class="statsMetaRows">
+              <div class="inlineMetaBlock">
+                <div class="metaLabel">Firewall</div>
+                <div id="promptFirewall" class="stateBlock stateInline">No firewall modifier</div>
+              </div>
+
+              <div class="inlineMetaBlock">
+                <div class="metaLabel">Status</div>
+                <pre id="statusLine" class="stateBlock">Type `--start to begin.</pre>
+              </div>
+
+              <div class="inlineMetaBlock">
+                <div class="metaLabel">Last Event</div>
+                <pre id="lastEventLine" class="stateBlock">-</pre>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
 

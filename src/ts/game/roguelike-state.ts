@@ -137,6 +137,10 @@ export interface InputResult {
   accepted: boolean;
   correct: boolean;
   message?: string;
+  wordCompleted?: boolean;
+  perfectWord?: boolean;
+  ampLevel?: number;
+  cleanChain?: number;
 }
 
 interface ShopOffers {
@@ -198,8 +202,8 @@ interface ActiveOperation {
 const STARTING_CREDITS = 4;
 const OPERATION_BASE_REWARD = 4;
 
-const BASE_SCRIPT_SLOTS = 5;
-const MAX_SCRIPT_SLOTS = 7;
+const BASE_SCRIPT_SLOTS = 3;
+const MAX_SCRIPT_SLOTS = 3;
 const BASE_COMMAND_SLOTS = 2;
 const BASE_PATCH_SLOTS = 2;
 
@@ -1691,6 +1695,11 @@ export function typeChar(char: string, now: number, wpm: number): InputResult {
 
   operation.currentWordTypedLength += 1;
 
+  let completionResult: Pick<
+    InputResult,
+    "wordCompleted" | "perfectWord" | "ampLevel" | "cleanChain"
+  > | null = null;
+
   if (isCurrentWordComplete()) {
     const currentWord = operation.promptWords[operation.currentWordIndex] ?? "";
     const startedAt = operation.currentWordStartedAt ?? now;
@@ -1699,17 +1708,24 @@ export function typeChar(char: string, now: number, wpm: number): InputResult {
 
     applyWordScoring(currentWord, durationSec, clean, wpm);
 
+    completionResult = {
+      wordCompleted: true,
+      perfectWord: clean,
+      ampLevel: hasFirewall("null_amp") ? 1 : operation.ampValue,
+      cleanChain: operation.cleanChain
+    };
+
     operation.currentWordLockIndex = operation.typedText.length;
     operation.currentWordBackspaced = false;
 
     if (operation.typedText.length >= operation.expectedText.length) {
       applyPromptCompletion(now);
-      return { accepted: true, correct: true };
+      return { accepted: true, correct: true, ...completionResult };
     }
   }
 
   statusText = "Typing.";
-  return { accepted: true, correct: true };
+  return { accepted: true, correct: true, ...(completionResult ?? {}) };
 }
 
 export function backspace(): InputResult {
