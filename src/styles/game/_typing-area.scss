@@ -1,333 +1,490 @@
-@use "../variables" as *;
-
-#layoutShell {
-  padding: 1ch;
-  background: color-mix(in srgb, var(--background0) 94%, #111b24);
-}
-
 #topBar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 1ch;
-  background: var(--background1);
-  padding: 0.75rem;
+  margin-bottom: 0.9rem;
 }
 
-#titleBlock {
-  min-width: 0;
+#topLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
-#appAsciiLogo {
-  margin: 0;
-  color: var(--foreground2);
-  white-space: pre;
-  font-size: 0.52rem;
-  line-height: 1.14;
-  letter-spacing: 0;
+#appTitle {
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
 }
 
 #topControls {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-#layoutGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 1ch;
-  align-items: stretch;
-}
-
-.panel {
-  background: var(--background1);
-}
-
-.sidePanel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.55rem 0.7rem;
-  min-width: 0;
-  max-height: none;
-  overflow: hidden;
-}
-
-.panelTitle {
-  margin: 0;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--foreground1);
-}
-
-.panelSectionTitle {
-  margin-top: 0;
-  color: var(--foreground2);
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-}
-
-#loadoutRows {
-  display: flex;
-  flex-direction: column;
-  gap: 0.34rem;
-}
-
-.loadoutRow {
-  display: grid;
-  grid-template-columns: 7.8rem minmax(0, 1fr);
   align-items: center;
   gap: 0.45rem;
+  padding: 0.34rem 0.45rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+}
+
+#topControls button,
+#topControls select {
+  border-radius: 8px;
+  padding: 0.24rem 0.55rem;
+  font-size: 0.9rem;
+  background: color-mix(in srgb, #000 8%, var(--panel));
+}
+
+#topControls button:hover,
+#topControls select:hover {
+  background: color-mix(in srgb, #000 12%, var(--panel));
+}
+
+.controlLabel {
+  color: var(--text-dim);
+  font-size: 0.86rem;
 }
 
 #centerColumn {
-  min-width: 0;
+  min-height: calc(100vh - 6.2rem);
 }
 
 #typingTerminal {
-  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  background: var(--background1);
-  min-height: calc(100vh - 9rem);
-  padding: 0.8rem;
+  min-height: calc(100vh - 6.2rem);
+  gap: 0.6rem;
 }
 
-#terminalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  border-bottom: 1px solid var(--background2);
-  padding-bottom: 0.6rem;
-}
-
-#promptTitle {
-  color: var(--foreground1);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-#operationInline {
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 91%, #142433);
-  padding: 0.5rem;
-}
-
-.kvChip {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 92%, #101a24);
-  padding: 0.28rem 0.4rem;
-  font-size: 0.76rem;
-}
-
-.kvChip span:first-child {
-  color: var(--foreground2);
-}
-
-.kvChip span:last-child {
-  color: var(--foreground0);
-}
-
-#targetLine {
+#playMeta {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 0.6rem;
-  margin-top: 0;
+  padding: 0.2rem 0.1rem;
 }
 
-.progressLabel {
-  color: var(--foreground2);
-  font-size: 0.72rem;
-  text-transform: uppercase;
+.playMetaValue {
+  color: var(--accent);
+  font-size: 2.1rem;
+  line-height: 1;
+  min-width: 3ch;
 }
 
-.progressValue {
-  color: var(--foreground0);
-  font-size: 0.82rem;
-}
-
-.progressTrack {
-  margin-top: 0.28rem;
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 86%, #111723);
-  height: 0.9rem;
-  padding: 0.08rem;
-  overflow: hidden;
-}
-
-.progressFill {
-  width: 0%;
-  height: 100%;
-  background: repeating-linear-gradient(
-    90deg,
-    #d7dbe2 0,
-    #d7dbe2 0.62rem,
-    #bcc3cd 0.62rem,
-    #bcc3cd 0.78rem
-  );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ffffff 22%, transparent);
-  transition: width 140ms linear;
-}
-
-#timerWrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.7rem;
-  align-items: center;
-  gap: 0.55rem;
-  margin-top: 0.36rem;
-}
-
-#timerBar {
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 86%, #111723);
-  height: 0.9rem;
-  padding: 0.08rem;
-  overflow: hidden;
-}
-
-#timerFill {
-  height: 100%;
-  width: 0%;
-  background: hsl(132 78% 43%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ffffff 25%, transparent);
-  transition: width 120ms linear, background-color 220ms linear;
-}
-
-#timerText {
-  min-width: 2.7rem;
+#targetValue {
   text-align: right;
-  color: var(--foreground0);
-  font-size: 0.8rem;
-}
-
-.statsMetaRows {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.45rem;
-}
-
-.inlineMetaBlock {
-  min-width: 0;
-}
-
-.metaLabel {
-  margin-bottom: 0.18rem;
-  color: var(--foreground2);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.stateBlock {
-  margin: 0;
-  white-space: pre-wrap;
-  color: var(--foreground0);
-  font-size: 0.77rem;
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 92%, #101722);
-  padding: 0.35rem;
-  min-height: 2.2rem;
-}
-
-.stateInline {
-  min-height: auto;
-}
-
-#statsPanel {
-  gap: 0.5rem;
-}
-
-#statsChipGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-#statsPanel #promptFirewall {
-  color: #e86d7a;
 }
 
 #promptBlock {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 94%, #0e1720);
-  padding: 0.6rem;
+  padding: 1rem 5.4rem;
+  overflow: hidden;
 }
 
 #promptContent {
-  font-size: 1.08rem;
-  line-height: 1.8;
-  color: var(--foreground2);
-  word-break: break-word;
+  font-size: 48px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
 }
 
 .promptChar {
-  color: var(--foreground2);
+  color: color-mix(in srgb, var(--text-primary) 82%, white);
+  white-space: pre;
+}
+
+.promptWord {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.promptSpace {
+  white-space: pre;
 }
 
 .promptCharCorrect {
-  color: #66db8f;
+  color: #b8efc1;
 }
 
 .promptCharIncorrect {
-  color: #ff6b6b;
-}
-
-.promptCharMasked {
-  color: color-mix(in srgb, var(--foreground2) 45%, transparent);
-}
-
-#scorePopupLayer {
-  position: absolute;
-  left: 0.3rem;
-  top: 0.3rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
-  pointer-events: none;
+  color: var(--danger);
 }
 
 .cursorAnchor {
   display: inline-block;
   position: relative;
   width: 0;
+  height: 1.08em;
+  vertical-align: -0.14em;
+  pointer-events: none;
 }
 
 .cursorAnchor::after {
   content: "";
   position: absolute;
-  left: -1px;
-  top: 0.1em;
-  width: 2px;
-  height: 1.05em;
-  background: #7dd3fc;
-  animation: cursorBlink 900ms steps(1, end) infinite;
+  left: -2px;
+  top: 0.04em;
+  width: 4px;
+  height: 0.98em;
+  background: #34f7ff;
+  box-shadow: 0 0 0 1px rgba(7, 17, 19, 0.35);
+  animation: cursorBlink 950ms steps(1, end) infinite;
+}
+
+#scorePopupLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  pointer-events: none;
 }
 
 .scorePopup {
-  color: #85e1ff;
-  font-size: 0.76rem;
-  background: color-mix(in srgb, var(--background0) 78%, transparent);
-  border: 1px solid color-mix(in srgb, var(--foreground1) 48%, transparent);
-  border-radius: 2px;
-  padding: 0.2rem 0.45rem;
-  animation: popupRise 800ms ease-out forwards;
+  color: var(--accent);
+  font-size: 0.9rem;
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  animation: popupRise 820ms ease-out forwards;
   white-space: nowrap;
+}
+
+#floatingScripts,
+#floatingUtility {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+#floatingScripts {
+  left: 0.75rem;
+}
+
+#floatingUtility {
+  right: 0.75rem;
+}
+
+.loadoutSquares {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.loadoutSquare {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 24%, transparent);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.loadoutSquare.isAction {
+  cursor: pointer;
+}
+
+.loadoutSquare.isAction:hover {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.loadoutSquare.isEmpty {
+  opacity: 0.25;
+}
+
+.slotIcon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.stackBadge {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  color: var(--accent);
+  font-size: 0.58rem;
+}
+
+#commandDock {
+  padding: 0 0.2rem;
+}
+
+.commandBlock {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.72rem;
+  line-height: 1.28;
+  color: color-mix(in srgb, var(--text-dim) 75%, white);
+}
+
+#commandOutput {
+  opacity: 0.75;
+}
+
+#timerBar,
+.progressTrack {
+  display: none;
+}
+
+#storeOverlay,
+#briefingOverlay,
+#runSummaryOverlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(24, 25, 26, 0.52);
+  padding: 1rem;
+  z-index: 30;
+}
+
+#storeOverlay.isOpen,
+#briefingOverlay.isOpen,
+#runSummaryOverlay.isOpen {
+  display: flex;
+}
+
+#briefingModal,
+#storeModal,
+#runSummaryModal {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 95%, #5f6162);
+  color: var(--text-primary);
+  padding: 0.9rem;
+}
+
+#briefingHeader,
+#storeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 0.65rem;
+}
+
+#briefingTitle,
+#storeTitle,
+#runSummaryTitle {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.04rem;
+  letter-spacing: 0.04em;
+}
+
+#briefingSubtitle,
+#storeCreditsLine,
+#storeStatus {
+  margin-top: 0.24rem;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+#briefingCloseBtn,
+#storeRerollBtn,
+#storeCloseBtn,
+#summaryRestartBtn,
+#summaryCloseBtn {
+  border-radius: 8px;
+  padding: 0.35rem 0.62rem;
+  font-size: 0.88rem;
+  background: color-mix(in srgb, #000 8%, var(--panel));
+  color: var(--text-primary);
+}
+
+#briefingMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.briefingMetaCard,
+.storeCard,
+.summaryStat {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent);
+  background: color-mix(in srgb, #000 8%, var(--panel));
+  padding: 0.5rem;
+}
+
+.briefingMetaLabel,
+.summaryLabel,
+.storeSectionTitle,
+.briefingBlockTitle {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+
+.briefingMetaValue,
+.summaryValue {
+  margin-top: 0.2rem;
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+.briefingList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.briefingDebuffCard {
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--panel) 86%, #7f6c72);
+  padding: 0.45rem;
+}
+
+.briefingDebuffName {
+  color: var(--danger);
+  font-size: 0.84rem;
+}
+
+.briefingDebuffDesc {
+  margin-top: 0.15rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.briefingLoadoutGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.briefingItem {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
+  background: color-mix(in srgb, #000 8%, var(--panel));
+  padding: 0.42rem;
+}
+
+.briefingItemIcon {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+.briefingItemLabel {
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.briefingItem.isEmpty {
+  opacity: 0.75;
+}
+
+.briefingAutoList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.briefingAutoRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, #000 8%, var(--panel));
+  padding: 0.4rem;
+}
+
+.briefingAutoRow input {
+  accent-color: var(--accent);
+}
+
+.briefingAutoLabel,
+.briefingAutoEmpty {
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.storeGrid {
+  margin-top: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.storeList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+.storeCardHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.storeCardTitle,
+.storeCardDesc {
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.storeCardPrice {
+  color: var(--accent);
+  font-size: 0.84rem;
+}
+
+.storeCardDesc {
+  margin-top: 0.2rem;
+  color: var(--text-dim);
+}
+
+.storeBtn {
+  margin-top: 0.4rem;
+  border-radius: 8px;
+  padding: 0.28rem 0.5rem;
+  background: color-mix(in srgb, #000 8%, var(--panel));
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+#runSummaryModal {
+  width: min(780px, 100%);
+}
+
+#runSummaryGrid {
+  margin-top: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+#runSummaryActions {
+  margin-top: 0.8rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
 }
 
 @keyframes popupRise {
@@ -335,7 +492,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
-  15% {
+  20% {
     opacity: 1;
     transform: translateY(0);
   }
@@ -356,341 +513,50 @@
   }
 }
 
-#terminalBashPane {
-  border-top: 1px solid var(--background2);
-  padding-top: 0.55rem;
-}
-
-.commandBlock {
-  margin: 0;
-  white-space: pre-wrap;
-  color: var(--foreground2);
-  font-size: 0.8rem;
-}
-
-#commandLive {
-  color: #7dd3fc;
-  margin-bottom: 0.35rem;
-}
-
-.slotGrid {
-  display: flex;
-  align-items: center;
-  gap: 0.32rem;
-  min-width: 0;
-  min-height: 1.8rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  white-space: nowrap;
-  padding-bottom: 0.08rem;
-}
-
-.slotChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 92%, #10202f);
-  padding: 0.2rem 0.35rem;
-  font-size: 0.7rem;
-  line-height: 1.2;
-}
-
-.slotChip.isEmpty {
-  color: color-mix(in srgb, var(--foreground2) 68%, transparent);
-}
-
-.slotName {
-  color: var(--foreground0);
-  white-space: nowrap;
-}
-
-.miniBtn {
-  border: 1px solid var(--background2);
-  background: var(--background0);
-  color: var(--foreground1);
-  font-size: 0.62rem;
-  padding: 0.08rem 0.28rem;
-}
-
-.miniBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.stackBadge {
-  color: #7dd3fc;
-  font-size: 0.72rem;
-}
-
-#storeOverlay {
-  position: fixed;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(1, 1, 1, 0.84);
-  padding: 1rem;
-  z-index: 20;
-}
-
-#briefingOverlay {
-  position: fixed;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(1, 1, 1, 0.8);
-  padding: 1rem;
-  z-index: 30;
-}
-
-#briefingOverlay.isOpen {
-  display: flex;
-}
-
-#briefingModal {
-  width: min(760px, 100%);
-  background: var(--background1);
-  padding: 0.8rem;
-}
-
-#briefingHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  border-bottom: 1px solid var(--background2);
-  padding-bottom: 0.6rem;
-}
-
-#briefingTitle {
-  margin: 0;
-  font-size: 0.96rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-#briefingSubtitle {
-  margin-top: 0.25rem;
-  color: var(--foreground1);
-  font-size: 0.8rem;
-}
-
-#briefingMetaGrid {
-  margin-top: 0.7rem;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.briefingMetaCard {
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 92%, #101a24);
-  padding: 0.45rem;
-}
-
-.briefingMetaLabel {
-  color: var(--foreground2);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-}
-
-.briefingMetaValue {
-  margin-top: 0.2rem;
-  color: var(--foreground0);
-  font-size: 0.85rem;
-}
-
-.briefingBlockTitle {
-  margin-top: 0.7rem;
-  margin-bottom: 0.3rem;
-  color: var(--foreground2);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.briefingList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.briefingDebuffCard {
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 92%, #22131a);
-  padding: 0.45rem;
-}
-
-.briefingDebuffName {
-  color: #ff9ea9;
-  font-size: 0.8rem;
-}
-
-.briefingDebuffDesc {
-  margin-top: 0.2rem;
-  color: var(--foreground2);
-  font-size: 0.76rem;
-}
-
-.briefingNotes {
-  margin: 0;
-  padding-left: 1.2rem;
-  color: var(--foreground2);
-  font-size: 0.78rem;
-}
-
-#briefingCloseBtn {
-  min-width: 6rem;
-}
-
-#storeOverlay.isOpen {
-  display: flex;
-}
-
-#storeModal {
-  width: min(1100px, 100%);
-  max-height: calc(100vh - 2rem);
-  overflow: auto;
-  background: var(--background1);
-  padding: 0.8rem;
-}
-
-#storeHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  border-bottom: 1px solid var(--background2);
-  padding-bottom: 0.7rem;
-}
-
-#storeTitle {
-  margin: 0;
-  font-size: 0.98rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-#storeCreditsLine {
-  margin-top: 0.32rem;
-  color: var(--foreground1);
-}
-
-#storeActions {
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
-.storeGrid {
-  margin-top: 0.75rem;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
-}
-
-.storeColumn {
-  min-width: 0;
-}
-
-.storeSectionTitle {
-  margin: 0 0 0.35rem;
-  color: var(--foreground1);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.storeList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.storeCard {
-  border: 1px solid var(--background2);
-  background: color-mix(in srgb, var(--background0) 92%, #11222f);
-  padding: 0.45rem;
-}
-
-.storeCard.isEmpty {
-  color: color-mix(in srgb, var(--foreground2) 68%, transparent);
-}
-
-.storeCardHead {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.55rem;
-}
-
-.storeCardTitle {
-  color: var(--foreground0);
-  font-size: 0.78rem;
-}
-
-.storeCardPrice {
-  color: #c4f184;
-  font-size: 0.76rem;
-}
-
-.storeCardDesc {
-  margin-top: 0.3rem;
-  color: var(--foreground2);
-  font-size: 0.75rem;
-}
-
-.storeBtn {
-  margin-top: 0.45rem;
-  border: 1px solid var(--background2);
-  background: var(--background0);
-  color: var(--foreground1);
-  font-size: 0.74rem;
-  padding: 0.22rem 0.45rem;
-}
-
-.storeBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.subtleMessage {
-  margin-top: 0.7rem;
-  color: var(--foreground2);
-  font-size: 0.8rem;
-}
-
-@media (max-width: 1120px) {
-  #typingTerminal {
-    min-height: 68vh;
-  }
-}
-
-@media (max-width: 860px) {
+@media (max-width: 980px) {
   #topBar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
-  #appAsciiLogo {
-    font-size: 0.46rem;
+  #hudStrip {
+    justify-content: flex-start;
   }
 
-  #statsChipGrid {
+  #typingTerminal {
+    min-height: calc(100vh - 10rem);
+  }
+
+  #promptBlock {
+    padding: 0.85rem 3.4rem;
+  }
+
+  #promptContent {
+    font-size: clamp(34px, 8vw, 46px);
+    line-height: 1.65;
+  }
+
+  .playMetaValue {
+    font-size: 1.65rem;
+  }
+
+  .storeGrid,
+  #briefingMetaGrid,
+  #runSummaryGrid,
+  .briefingLoadoutGrid {
     grid-template-columns: 1fr;
   }
 
-  .loadoutRow {
-    grid-template-columns: 1fr;
-    gap: 0.18rem;
+  #floatingScripts {
+    left: 0.35rem;
   }
 
-  .storeGrid {
-    grid-template-columns: 1fr;
+  #floatingUtility {
+    right: 0.35rem;
   }
 
-  #briefingMetaGrid {
-    grid-template-columns: 1fr;
+  .loadoutSquare {
+    width: 31px;
+    height: 31px;
   }
 }

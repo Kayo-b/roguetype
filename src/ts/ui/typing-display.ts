@@ -4,43 +4,59 @@ let promptTitleElement: HTMLElement | null = null;
 let promptFirewallElement: HTMLElement | null = null;
 let promptContentElement: HTMLElement | null = null;
 
+function escapeChar(char: string): string {
+  if (char === "&") return "&amp;";
+  if (char === "<") return "&lt;";
+  if (char === ">") return "&gt;";
+  if (char === '"') return "&quot;";
+  if (char === "'") return "&#39;";
+  return char;
+}
+
 function renderPromptText(): void {
   if (!promptContentElement) return;
 
   const expected = RogueState.getExpectedText();
-  const maskedExpected = RogueState.getMaskedExpectedText();
   const typed = RogueState.getTypedText();
   const errorText = RogueState.getErrorText();
   const cursorIndex = RogueState.getCursorIndex();
-  const hidden = RogueState.isPromptHidden();
 
   let html = "";
+  let inWord = false;
 
   for (let i = 0; i < expected.length; i += 1) {
-    if (i === cursorIndex) {
-      html += '<span id="cursorAnchor" class="cursorAnchor" aria-hidden="true"></span>';
+    const isSpace = expected[i] === " ";
+    if (!isSpace && !inWord) {
+      html += '<span class="promptWord">';
+      inWord = true;
+    } else if (isSpace && inWord) {
+      html += "</span>";
+      inWord = false;
     }
 
-    const rawChar = hidden ? (maskedExpected[i] ?? expected[i]) : expected[i];
-    const visibleChar = rawChar === " " ? "&nbsp;" : rawChar;
+    const cursorHtml =
+      i === cursorIndex ? '<span id="cursorAnchor" class="cursorAnchor" aria-hidden="true"></span>' : "";
+
+    const rawChar = expected[i];
+    const visibleChar = escapeChar(rawChar);
+    const classes = ["promptChar"];
+    if (isSpace) classes.push("promptSpace");
 
     if (i < typed.length) {
-      html += `<span class="promptChar promptCharCorrect">${visibleChar}</span>`;
-      continue;
-    }
-
-    if (i < typed.length + errorText.length) {
+      classes.push("promptCharCorrect");
+      html += `${cursorHtml}<span class="${classes.join(" ")}">${visibleChar}</span>`;
+    } else if (i < typed.length + errorText.length) {
       const wrongChar = errorText[i - typed.length];
-      const wrongVisible = wrongChar === " " ? "&nbsp;" : wrongChar;
-      html += `<span class="promptChar promptCharIncorrect">${wrongVisible}</span>`;
-      continue;
-    }
-
-    if (hidden && rawChar === "*") {
-      html += `<span class="promptChar promptCharMasked">${visibleChar}</span>`;
+      const wrongVisible = escapeChar(wrongChar);
+      classes.push("promptCharIncorrect");
+      html += `${cursorHtml}<span class="${classes.join(" ")}">${wrongVisible}</span>`;
     } else {
-      html += `<span class="promptChar">${visibleChar}</span>`;
+      html += `${cursorHtml}<span class="${classes.join(" ")}">${visibleChar}</span>`;
     }
+  }
+
+  if (inWord) {
+    html += "</span>";
   }
 
   if (cursorIndex >= expected.length) {
@@ -57,7 +73,7 @@ function renderHeader(): void {
   const firewalls = RogueState.getActiveFirewallLabels();
 
   promptTitleElement.textContent = label;
-  promptFirewallElement.textContent = firewalls === "None" ? "No firewall modifier" : firewalls;
+  promptFirewallElement.textContent = firewalls === "None" ? "No active challenge" : firewalls;
 }
 
 export function initDisplay(): void {

@@ -1,0 +1,49 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: RogueType
+      - generic [ref=e7]:
+        - button "Start Run" [ref=e8] [cursor=pointer]
+        - button "Reset" [ref=e9] [cursor=pointer]
+        - button "Skip" [ref=e67] [cursor=pointer]
+        - generic [ref=e10]: Text
+        - combobox "Text" [ref=e11]:
+          - option "Quotes" [selected]
+          - option "Book Passages"
+          - option "Random Letters"
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: Run
+        - generic [ref=e15]: "31"
+      - generic [ref=e16]:
+        - generic [ref=e17]: Best
+        - generic [ref=e18]: "33"
+      - generic [ref=e19]:
+        - generic [ref=e20]: OUT
+        - generic [ref=e21]: "31"
+      - generic [ref=e22]:
+        - generic [ref=e23]: AMP
+        - generic [ref=e24]: 1.00x
+      - generic [ref=e25]:
+        - generic [ref=e26]: Streak
+        - generic [ref=e27]: "1"
+      - generic [ref=e28]:
+        - generic [ref=e29]: WPM
+        - generic [ref=e30]: "2"
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]: "58"
+        - generic "Target 375" [ref=e68]: "31"
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - text: The
+          - text: best rhythm is the one you can keep without strain. Take rest when you need it, then return with a clear and patient
+        - generic [ref=e40]: Boosters 0/3
+        - generic [ref=e45]:
+          - generic [ref=e46]: Actions 0/2
+          - generic [ref=e50]: Talents 0/2
+      - generic [ref=e54]:
+        - generic [ref=e55]: "$ [typing] Type passage text · Press ` for commands · Ctrl+1..9 use action slots"
+        - generic [ref=e56]: "$ ready Use `--start to begin a run."
+      - generic [ref=e57]: Stage 1 · Warmup No active challenge Stage 1 · warmup 4c Typing. +31 OUT × 1.00 AMP = 31

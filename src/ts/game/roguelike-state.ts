@@ -1,5 +1,6 @@
 export type RoguePhase = "idle" | "operation" | "shop" | "game-over" | "victory";
 export type OperationType = "probe" | "intrude" | "firewall";
+export type PromptContentMode = "quotes" | "books" | "letters";
 
 export type ScriptTier = "utility" | "advanced" | "exploit" | "zero-day";
 
@@ -221,120 +222,120 @@ const SECTOR_CONFIGS: SectorConfig[] = [
 const SCRIPT_DEFS: Record<ScriptId, ScriptDefinition> = {
   keylogger: {
     id: "keylogger",
-    label: "keylogger.sh",
+    label: "Steady Rhythm",
     description: "+5 OUT per word typed.",
     tier: "utility",
     baseCost: 3,
   },
   packet_sniffer: {
     id: "packet_sniffer",
-    label: "packet_sniffer",
+    label: "Clean Cadence",
     description: "+0.1 AMP per clean word.",
     tier: "utility",
     baseCost: 3,
   },
   idle_daemon: {
     id: "idle_daemon",
-    label: "idle_daemon",
+    label: "Quiet Reserve",
     description: "+0.05 AMP per second remaining when operation clears.",
     tier: "utility",
     baseCost: 3,
   },
   throttle_hook: {
     id: "throttle_hook",
-    label: "throttle_hook",
+    label: "Speed Spark",
     description: "+0.2 AMP when WPM exceeds threshold.",
     tier: "utility",
     baseCost: 3,
   },
   null_handler: {
     id: "null_handler",
-    label: "null_handler",
-    description: "Backspace no longer breaks streak.",
+    label: "Soft Reset",
+    description: "Backspace no longer breaks clean chain.",
     tier: "utility",
     baseCost: 3,
   },
   fork_bomb: {
     id: "fork_bomb",
-    label: "fork_bomb.sh",
+    label: "Pulse Bloom",
     description: "Every 5th word doubles current AMP for that score event.",
     tier: "advanced",
     baseCost: 5,
   },
   brute_force: {
     id: "brute_force",
-    label: "brute_force",
+    label: "Swift Finish",
     description: "Prompt cleared in under 20s gives +3 AMP for the operation.",
     tier: "advanced",
     baseCost: 5,
   },
   parity_check: {
     id: "parity_check",
-    label: "parity_check",
+    label: "Balanced Stride",
     description: "Even-length words use +20 OUT base instead of +10 OUT base.",
     tier: "advanced",
     baseCost: 5,
   },
   stack_overflow: {
     id: "stack_overflow",
-    label: "stack_overflow",
+    label: "Carryover Momentum",
     description: "Each cleared operation adds +0.1 AMP permanently for this run.",
     tier: "advanced",
     baseCost: 5,
   },
   watchdog_timer: {
     id: "watchdog_timer",
-    label: "watchdog.timer",
+    label: "Time Focus",
     description: "+0.1 AMP per 5 seconds elapsed.",
     tier: "advanced",
     baseCost: 5,
   },
   cascade_exploit: {
     id: "cascade_exploit",
-    label: "cascade.exploit",
+    label: "Echo Stride",
     description: "Word scored under 2s re-triggers previous word OUT.",
     tier: "exploit",
     baseCost: 7,
   },
   fragile_payload: {
     id: "fragile_payload",
-    label: "fragile_payload",
+    label: "High-Wire Focus",
     description: "AMP starts at x3, resets to x1 on any backspace.",
     tier: "exploit",
     baseCost: 7,
   },
   zero_fault: {
     id: "zero_fault",
-    label: "zero_fault",
+    label: "Flawless Finish",
     description: "Zero-backspace operation clear doubles operation score.",
     tier: "exploit",
     baseCost: 7,
   },
   overclock_bin: {
     id: "overclock_bin",
-    label: "overclock.bin",
+    label: "Quickened Pace",
     description: "All AMP additions are doubled, but operation time is reduced by 10s.",
     tier: "exploit",
     baseCost: 7,
   },
   deep_scan: {
     id: "deep_scan",
-    label: "deep_scan",
+    label: "Long-Word Lift",
     description: "Words of length 8+ grant +2 AMP instead of base word OUT.",
     tier: "exploit",
     baseCost: 7,
   },
   singularity_0day: {
     id: "singularity_0day",
-    label: "singularity.0day",
+    label: "Breakthrough Moment",
     description: "Once per operation, a sub-1s word sets AMP = AMP^2 (cap x50).",
     tier: "zero-day",
     baseCost: 10,
   },
   echo_chamber: {
     id: "echo_chamber",
-    label: "echo_chamber",
-    description: "Script effects trigger twice. Script slot capacity is reduced by 2.",
+    label: "Double Resonance",
+    description: "Booster effects trigger twice. Booster slot capacity is reduced by 2.",
     tier: "zero-day",
     baseCost: 10,
   },
@@ -343,37 +344,37 @@ const SCRIPT_DEFS: Record<ScriptId, ScriptDefinition> = {
 const COMMAND_DEFS: Record<CommandId, CommandDefinition> = {
   flush_amp: {
     id: "flush_amp",
-    label: "--flush-amp",
+    label: "Reset Momentum",
     description: "Reset AMP to 1.0 and add current AMP as flat OUT bonus per remaining word.",
     baseCost: 3,
   },
   payload_burst: {
     id: "payload_burst",
-    label: "--payload-burst",
+    label: "Burst Focus",
     description: "Next 5 words score triple OUT.",
     baseCost: 3,
   },
   spoof_script: {
     id: "spoof_script",
-    label: "--spoof-script",
-    description: "Copy a random owned script effect for this operation.",
+    label: "Mirror Booster",
+    description: "Copy a random owned booster effect for this stage.",
     baseCost: 3,
   },
   extend_timeout: {
     id: "extend_timeout",
-    label: "--extend-timeout",
-    description: "+10 seconds to operation timer.",
+    label: "Extra Time",
+    description: "+10 seconds to the stage timer.",
     baseCost: 3,
   },
   recompile: {
     id: "recompile",
-    label: "--recompile",
-    description: "Reroll a random equipped script to another script of the same rarity.",
+    label: "Recast Booster",
+    description: "Reroll a random equipped booster to another booster of the same rarity.",
     baseCost: 3,
   },
   inject: {
     id: "inject",
-    label: "--inject",
+    label: "Next Word Lift",
     description: "Next word grants +1 AMP regardless of backspaces.",
     baseCost: 3,
   },
@@ -382,31 +383,31 @@ const COMMAND_DEFS: Record<CommandId, CommandDefinition> = {
 const PATCH_DEFS: Record<PatchId, PatchDefinition> = {
   patch_clean: {
     id: "patch_clean",
-    label: "patch_clean.bin",
+    label: "Clean Focus",
     description: "Clean word bonus +5 OUT per stack.",
     baseCost: 4,
   },
   patch_burst: {
     id: "patch_burst",
-    label: "patch_burst.bin",
+    label: "Burst Focus",
     description: "Burst trigger gives +0.1 AMP per stack.",
     baseCost: 4,
   },
   patch_finish: {
     id: "patch_finish",
-    label: "patch_finish.bin",
+    label: "Finish Focus",
     description: "Completion bonus multiplier +0.1 per stack.",
     baseCost: 4,
   },
   patch_deep: {
     id: "patch_deep",
-    label: "patch_deep.bin",
+    label: "Depth Focus",
     description: "Long word bonus +3 OUT per stack.",
     baseCost: 4,
   },
   patch_recover: {
     id: "patch_recover",
-    label: "patch_recover.bin",
+    label: "Recovery Focus",
     description: "Backspace reset drops AMP by 0.5 per stack instead of full reset.",
     baseCost: 4,
   },
@@ -415,44 +416,44 @@ const PATCH_DEFS: Record<PatchId, PatchDefinition> = {
 const LICENSE_DEFS: Record<LicenseId, LicenseDefinition> = {
   license_slots: {
     id: "license_slots",
-    label: "license_slots.ext",
-    description: "+1 script slot capacity.",
+    label: "Extra Booster Slot",
+    description: "+1 booster slot capacity.",
     baseCost: 8,
   },
   license_threshold: {
     id: "license_threshold",
-    label: "license_threshold.ext",
-    description: "Speed-script WPM threshold reduced by 10.",
+    label: "Faster Spark",
+    description: "Speed-spark WPM threshold reduced by 10.",
     baseCost: 8,
   },
   license_bulk: {
     id: "license_bulk",
-    label: "license_bulk.ext",
-    description: "All shop items cost 1 credit less (stackable).",
+    label: "Bargain Pass",
+    description: "All workshop items cost 1 credit less (stackable).",
     baseCost: 8,
   },
   license_commands: {
     id: "license_commands",
-    label: "license_commands.ext",
-    description: "+1 command slot.",
+    label: "Extra Action Slot",
+    description: "+1 action slot.",
     baseCost: 8,
   },
   license_patches: {
     id: "license_patches",
-    label: "license_patches.ext",
-    description: "+1 patch slot.",
+    label: "Extra Talent Slot",
+    description: "+1 talent slot.",
     baseCost: 8,
   },
   license_interest: {
     id: "license_interest",
-    label: "license_interest.ext",
-    description: "+1 credit per operation cleared (retroactive at purchase).",
+    label: "Steady Income",
+    description: "+1 credit per cleared stage (retroactive at purchase).",
     baseCost: 8,
   },
   license_failsafe: {
     id: "license_failsafe",
-    label: "license_failsafe.ext",
-    description: "Once per run, survive timeout failure with 5 seconds extension.",
+    label: "Second Wind",
+    description: "Once per run, survive timeout failure with a 5 second extension.",
     baseCost: 8,
   },
 };
@@ -460,32 +461,32 @@ const LICENSE_DEFS: Record<LicenseId, LicenseDefinition> = {
 const FIREWALL_DEFS: Record<FirewallId, FirewallDefinition> = {
   scrambler: {
     id: "scrambler",
-    label: "SCRAMBLER",
-    description: "Prompt tokens are shuffled each prompt.",
+    label: "SHUFFLE",
+    description: "Prompt words are shuffled each new prompt.",
   },
   bit_flip: {
     id: "bit_flip",
-    label: "BIT_FLIP",
+    label: "INVERT",
     description: "AMP gains become OUT gains and OUT gains become AMP gains.",
   },
   readonly: {
     id: "readonly",
-    label: "READONLY",
+    label: "NO_BACKSPACE",
     description: "Backspace is disabled.",
   },
   blackout: {
     id: "blackout",
-    label: "BLACKOUT",
-    description: "No score feedback is shown until operation end.",
+    label: "HIDDEN_SCORE",
+    description: "No score feedback is shown until the stage ends.",
   },
   bloat: {
     id: "bloat",
-    label: "BLOAT",
+    label: "HEAVY_TARGET",
     description: "Score target is doubled.",
   },
   throttle: {
     id: "throttle",
-    label: "THROTTLE",
+    label: "SHORT_CLOCK",
     description: "Time limit is halved, reward is doubled.",
   },
   mirror: {
@@ -495,17 +496,17 @@ const FIREWALL_DEFS: Record<FirewallId, FirewallDefinition> = {
   },
   amnesia: {
     id: "amnesia",
-    label: "AMNESIA",
+    label: "FADE_OUT",
     description: "Prompt is hidden after 3 seconds.",
   },
   null_amp: {
     id: "null_amp",
-    label: "NULL_AMP",
+    label: "NO_AMP",
     description: "AMP gains are disabled. Scoring comes only from OUT.",
   },
   gc_sweep: {
     id: "gc_sweep",
-    label: "GC_SWEEP",
+    label: "RESET_WAVE",
     description: "AMP resets to 1.0 every 10 seconds.",
   },
 };
@@ -517,252 +518,125 @@ const NON_FINAL_FIREWALLS: FirewallId[] = [
   "blackout",
   "bloat",
   "throttle",
-  "mirror",
-  "amnesia",
   "null_amp",
   "gc_sweep",
 ];
 
 const COMMON_WORDS = [
-  "trace",
-  "drift",
-  "signal",
   "quiet",
-  "stack",
-  "ghost",
-  "token",
-  "route",
-  "scope",
-  "cache",
-  "pulse",
-  "delta",
-  "matrix",
-  "kernel",
-  "packet",
-  "cipher",
-  "socket",
-  "daemon",
-  "buffer",
-  "module",
-  "vector",
-  "branch",
-  "commit",
-  "thread",
-  "orbit",
-  "relay",
-  "storm",
-  "tunnel",
-  "watch",
-  "vault",
+  "gentle",
+  "meadow",
+  "harbor",
+  "silver",
+  "window",
+  "evening",
+  "morning",
+  "garden",
+  "paper",
+  "candle",
+  "river",
+  "horizon",
+  "lantern",
+  "warmth",
+  "breeze",
+  "willow",
+  "shore",
+  "songbird",
+  "pillow",
+  "coffee",
+  "bookshop",
+  "sunrise",
+  "sunset",
+  "autumn",
+  "spring",
+  "winter",
+  "summer",
+  "valley",
+  "journey",
 ];
 
 const COMPOUND_WORDS = [
-  "handover",
-  "backtrace",
-  "overclock",
-  "cacheline",
-  "watchtower",
-  "nightshift",
-  "firebreak",
-  "payload",
-  "safeguard",
-  "checksum",
-  "downstream",
-  "hardware",
-  "lockstep",
-  "northbound",
-  "failsafe",
-  "gridline",
-  "redzone",
-  "lifeline",
-  "coreloop",
-  "wildcard",
+  "moonlight",
+  "wildflower",
+  "starlight",
+  "daybreak",
+  "hillside",
+  "raindrop",
+  "fireplace",
+  "doorframe",
+  "bookcase",
+  "footpath",
+  "seashore",
+  "heartbeat",
+  "sunbeam",
+  "northwind",
+  "pinecone",
+  "soundtrack",
+  "snowfall",
+  "lakeside",
+  "daydream",
+  "handwritten",
 ];
 
-const BASH_TECH = [
-  "grep",
-  "awk",
-  "sed",
-  "xargs",
-  "chmod",
-  "tar",
-  "systemctl",
-  "journalctl",
-  "--force",
-  "--all",
-  "--verbose",
-  "pipeline",
-  "daemon",
-  "latency",
-  "throughput",
-  "hotfix",
-  "rollback",
-  "endpoint",
-  "payload",
-  "kernel",
-  "iptables",
-  "netstat",
-  "traceroute",
-  "syslog",
+const QUOTE_PASSAGES = [
+  "Take rest when you need it, then return with a clear and patient mind.",
+  "Small steps repeated each day can carry you farther than hurried leaps.",
+  "Attention is a quiet power that grows each time you bring it back.",
+  "A calm breath can turn a difficult moment into a steady beginning.",
+  "Keep your pace kind and your focus honest, and progress will appear.",
+  "What matters most is not speed alone, but steady effort over time.",
+  "The room feels different when your thoughts settle into one clear line.",
+  "Practice is a conversation between patience, repetition, and gentle correction.",
+  "You do not have to rush the work that teaches you how to improve.",
+  "When the page grows noisy, return to the next word and continue.",
+  "Confidence is often built from many quiet sessions that nobody sees.",
+  "The simple habit of showing up can change the whole direction of a day.",
+  "Each careful line you type is a promise to keep moving forward.",
+  "The best rhythm is the one you can keep without strain.",
+  "Let the sentence guide your hands and let your hands guide your focus.",
+  "Progress hides in ordinary moments that are repeated with care.",
+  "Calm attention turns long passages into manageable pieces.",
+  "A good session feels less like pressure and more like flow.",
+  "You can be precise and relaxed at the same time.",
+  "The next line is enough; you do not need the whole chapter at once.",
+  "Consistency can be quiet, but its results are unmistakable.",
+  "Make room for mistakes, then make room for correction and growth.",
+  "The mind settles when the task is clear and the pace is steady.",
+  "Gentle focus is still focus, and often it lasts much longer.",
 ];
 
-const CAMEL_DIGIT = [
-  "cacheMiss2",
-  "renderLoop7",
-  "packetBurst9",
-  "syncThread5",
-  "deltaHash3",
-  "byteShift8",
-  "rootSignal6",
-  "patchCycle4",
-  "queueDrain2",
-  "nodeRelay5",
-  "tokenGate8",
-  "pingFlood7",
-  "traceMode9",
-  "buildStep3",
-  "configFlag2",
-  "indexLoop6",
-  "jobRunner4",
-  "cleanExit1",
+const BOOK_PASSAGES = [
+  "In the early light, the village road was empty except for the baker and his cart.",
+  "She paused at the doorway, listening to rain gather softly against the old windows.",
+  "The river curved around the town, carrying leaves, reflections, and late afternoon light.",
+  "On the shelf sat a worn atlas, its pages folded at the corners from years of travel.",
+  "By evening the harbor lanterns were lit, and the water answered with long ribbons of gold.",
+  "He wrote one sentence, crossed it out, and began again with a steadier hand.",
+  "At the market square, voices rose and fell like birds circling above a stone fountain.",
+  "The teacher opened a narrow book and read while the room settled into silence.",
+  "A pale moon hung above the ridge as travelers followed the road toward the inn.",
+  "She turned the key, pushed open the gate, and stepped into an overgrown courtyard.",
+  "From the balcony they could see distant hills fading into a blue evening haze.",
+  "The station clock struck nine, and the final train sighed into the night.",
+  "In the library annex, dust drifted through beams of light above quiet wooden tables.",
+  "Winter arrived early that year, and the first snow erased every footprint by noon.",
+  "He carried a letter in his coat pocket and read it only when the wind was still.",
+  "At dawn the orchard smelled of earth and rain, and every branch glittered with dew.",
+  "The innkeeper set two cups on the table and waited for the story to begin.",
+  "A small boat rocked near the pier while gulls argued over the morning catch.",
+  "They walked through narrow streets where each window held a different evening scene.",
+  "The map was old, but the ink remained dark where the mountain pass was marked.",
+  "A crackling fire and a stack of books made the long storm feel almost welcome.",
+  "She read the same paragraph twice and found a different meaning the second time.",
+  "Along the cliff path, wild grass bent in waves beneath the ocean wind.",
+  "When the bell rang, the square fell quiet for a single reflective moment.",
 ];
 
-const SYMBOL_HEAVY = [
-  "./deploy.sh",
-  "src/app.ts",
-  "--watch",
-  "--no-cache",
-  "auth@node",
-  "{retry:3}",
-  "[prod]",
-  "$PATH",
-  "&&",
-  "||",
-  "!=",
-  "=>",
-  "::",
-  "npm:build",
-  "git@origin",
-  "curl://api",
-  "db/main#1",
-  "flag?true",
-  "queue+1",
-  "stack*2",
-  "root/null",
-  "v1.2.3",
-];
-
-const JS_SNIPPETS = [
-  "function validateUser(user) { if (!user) { return false; } return user.isActive; }",
-  "const total = items.reduce((sum, item) => sum + item.price, 0);",
-  "function normalize(text) { return text.trim().toLowerCase(); }",
-  "const hasAccess = role === 'admin' || role === 'owner';",
-  "if (count > 10) { return list.slice(0, 10); }",
-  "const payload = { id: userId, token: sessionToken, retry: 3 };",
-  "function isValid(code) { return code.length >= 8 && code.includes('_'); }",
-  "const next = queue.filter((job) => job.status === 'pending');",
-  "async function loadData(api) { const data = await api.fetch(); return data; }",
-  "const safe = value ?? defaultValue;",
-  "function parseFlag(input) { if (input === '1') { return true; } return false; }",
-  "const env = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';",
-  "function canRetry(attempt) { return attempt < 5; }",
-  "const config = { timeout: 5000, cache: true, mode: 'strict' };",
-  "if (error) { logger.warn(error.message); return null; }",
-  "function mapUser(user) { return { id: user.id, name: user.name }; }",
-  "const unique = [...new Set(values)];",
-  "function isEven(value) { return value % 2 === 0; }",
-  "const visible = list.find((entry) => entry.enabled);",
-  "function pickFirst(arr) { if (!arr.length) { return null; } return arr[0]; }",
-  "const path = `${baseUrl}/api/v1/users`;",
-  "function allowWrite(scope) { return scope.includes('write'); }",
-  "const ready = state === 'ready' && !isLocked;",
-  "function compose(a, b) { return `${a}-${b}`; }",
-  "if (signal.aborted) { throw new Error('aborted'); }",
-];
-
-const SQL_SNIPPETS = [
-  "SELECT id, email FROM users WHERE is_active = 1;",
-  "SELECT role, COUNT(*) FROM users GROUP BY role;",
-  "UPDATE users SET last_login = NOW() WHERE id = 42;",
-  "DELETE FROM sessions WHERE expires_at < NOW();",
-  "SELECT * FROM orders WHERE status = 'pending' ORDER BY created_at DESC;",
-  "INSERT INTO logs(level, message) VALUES('info', 'job started');",
-  "SELECT u.id, u.name FROM users u INNER JOIN teams t ON t.id = u.team_id;",
-  "SELECT * FROM payments WHERE amount > 1000 LIMIT 25;",
-  "SELECT COUNT(*) FROM requests WHERE code = 500;",
-  "SELECT name FROM products WHERE stock > 0 ORDER BY name ASC;",
-  "SELECT id FROM files WHERE checksum IS NOT NULL;",
-  "UPDATE jobs SET status = 'done' WHERE finished_at IS NOT NULL;",
-  "SELECT * FROM users WHERE email LIKE '%@company.com';",
-  "SELECT project_id, SUM(cost) FROM expenses GROUP BY project_id;",
-  "SELECT * FROM tokens WHERE revoked = 0 AND expires_at > NOW();",
-  "SELECT id, created_at FROM events ORDER BY created_at DESC LIMIT 10;",
-  "SELECT DISTINCT country FROM users;",
-  "UPDATE settings SET value = 'on' WHERE key = 'feature_x';",
-  "SELECT * FROM alerts WHERE severity IN ('high', 'critical');",
-  "SELECT user_id, COUNT(*) FROM sessions GROUP BY user_id HAVING COUNT(*) > 3;",
-  "SELECT * FROM invoices WHERE paid = 0;",
-  "SELECT * FROM audit WHERE action = 'login' AND success = 1;",
-  "SELECT * FROM teams WHERE archived = 0;",
-  "SELECT id FROM jobs WHERE status = 'failed' ORDER BY updated_at DESC;",
-  "SELECT * FROM configs WHERE env = 'prod';",
-];
-
-const SQLI_SNIPPETS = [
-  "SELECT * FROM users WHERE name = 'admin' OR '1'='1';",
-  "SELECT * FROM accounts WHERE id = 1 UNION SELECT user, pass FROM secrets;",
-  "SELECT * FROM items WHERE sku = 'x' --';",
-  "SELECT * FROM logs WHERE level = 'warn' OR SLEEP(2)=0;",
-  "SELECT * FROM profile WHERE email = '' OR EXISTS(SELECT 1 FROM users);",
-  "SELECT * FROM admin WHERE token = '' UNION SELECT version(), NULL;",
-  "SELECT * FROM auth WHERE user = 'a' AND pass = '' OR '1'='1';",
-  "SELECT * FROM clients WHERE id = 9 OR 1=1 LIMIT 1;",
-  "SELECT * FROM files WHERE path = '/tmp' OR 'x'='x';",
-  "SELECT * FROM orders WHERE ref = '' OR IF(1=1,1,0)=1;",
-  "SELECT * FROM events WHERE id = 4 UNION SELECT table_name, NULL FROM information_schema.tables;",
-  "SELECT * FROM users WHERE email = 'a@a.com' OR LENGTH(password) > 0;",
-  "SELECT * FROM api_keys WHERE key = '' OR 'a'='a';",
-  "SELECT * FROM notes WHERE id = 3 OR id IN (SELECT id FROM users);",
-  "SELECT * FROM config WHERE env = 'dev' OR '1'='1';",
-  "SELECT * FROM vault WHERE owner = '' UNION SELECT name, value FROM secrets;",
-  "SELECT * FROM tasks WHERE id = '' OR EXISTS(SELECT 1 FROM tasks);",
-  "SELECT * FROM members WHERE id = 1 OR benchmark(1000000,md5('a'));",
-  "SELECT * FROM books WHERE title = '' OR 'x'='x' --';",
-  "SELECT * FROM orders WHERE code = '' UNION SELECT user(), NULL;",
-];
-
-const BASH_SNIPPETS = [
-  "if [ -f /etc/hosts ]; then echo ready; else echo missing; fi",
-  "for file in *.log; do grep ERROR \"$file\"; done",
-  "if [ \"$COUNT\" -gt 5 ]; then echo high; else echo low; fi",
-  "result=$(cat app.log | tail -n 20 | grep WARN)",
-  "if ps aux | grep -q node; then echo running; else echo stopped; fi",
-  "for user in $(cat users.txt); do echo \"$user\"; done",
-  "if [ -d backup ]; then tar -czf backup.tgz backup; fi",
-  "line_count=$(wc -l < access.log)",
-  "if [ \"$line_count\" -gt 1000 ]; then echo rotate; fi",
-  "export API_URL=\"https://api.local\" && curl -s \"$API_URL/health\"",
-  "if grep -q TODO src/main.ts; then echo todo-found; fi",
-  "for i in 1 2 3; do echo \"retry $i\"; done",
-  "if [ -z \"$TOKEN\" ]; then echo no-token; exit 1; fi",
-  "archive_name=\"logs_$(date +%s).tgz\"",
-  "if [ \"$MODE\" = \"prod\" ]; then echo deploy; else echo dry-run; fi",
-  "for svc in api worker cron; do systemctl status \"$svc\"; done",
-  "if [ -w /tmp ]; then touch /tmp/test.flag; fi",
-  "json=$(curl -s \"$URL\" | jq '.status')",
-  "if [ \"$json\" = \"ok\" ]; then echo pass; else echo fail; fi",
-  "for path in src test docs; do find \"$path\" -type f | wc -l; done",
-  "if [ -n \"$DEBUG\" ]; then set -x; fi",
-  "hash=$(sha256sum app.tar.gz | awk '{print $1}')",
-  "if [ \"$hash\" != \"\" ]; then echo hashed; fi",
-  "for pid in $(pgrep node); do kill -0 \"$pid\" && echo alive; done",
-  "if [ -r config.env ]; then source config.env; fi",
-];
-
-const CODE_LANGUAGE_POOLS = [JS_SNIPPETS, SQL_SNIPPETS, SQLI_SNIPPETS, BASH_SNIPPETS];
+const LETTER_ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 
 let phase: RoguePhase = "idle";
 let statusText = "Type `--start to begin.";
+let promptContentMode: PromptContentMode = "quotes";
 
 let runScore = 0;
 let credits = STARTING_CREDITS;
@@ -792,7 +666,6 @@ let commands: CommandId[] = [];
 
 let stackOverflowRunAmpBonus = 0;
 let zeroDayPicked = false;
-let codeSyntaxUnlocked = false;
 
 let operation: ActiveOperation | null = null;
 let pendingAfterShop: { sector: number; operationInSector: 1 | 2 | 3 } | null = null;
@@ -837,151 +710,111 @@ function getOperationType(operationInSector: 1 | 2 | 3): OperationType {
 }
 
 function getWordCountForSector(sector: number): number {
-  return 8 + Math.floor(((clamp(sector, 1, 8) - 1) * 6) / 7);
-}
-
-function reverseToken(word: string): string {
-  return Array.from(word).reverse().join("");
+  return 24 + Math.floor(((clamp(sector, 1, 8) - 1) * 18) / 7);
 }
 
 function createSectorWordPool(sector: number): string[] {
   if (sector <= 2) {
-    return COMMON_WORDS.filter((word) => word.length >= 3 && word.length <= 6);
+    return COMMON_WORDS.filter((word) => word.length >= 4 && word.length <= 7);
   }
 
   if (sector <= 4) {
     return [...COMMON_WORDS, ...COMPOUND_WORDS];
   }
 
-  if (sector === 5) {
-    return [...BASH_TECH, ...COMPOUND_WORDS.slice(0, 8)];
-  }
-
-  if (sector === 6) {
-    return [...CAMEL_DIGIT, ...BASH_TECH.slice(0, 12)];
-  }
-
-  if (sector === 7) {
-    const reversed = COMMON_WORDS.slice(0, 12).map((word) => reverseToken(word));
-    return [...SYMBOL_HEAVY, ...reversed, ...CAMEL_DIGIT.slice(0, 8)];
-  }
-
-  return [...COMMON_WORDS, ...COMPOUND_WORDS, ...BASH_TECH, ...CAMEL_DIGIT, ...SYMBOL_HEAVY];
+  return [...COMMON_WORDS, ...COMPOUND_WORDS];
 }
 
-function createPromptWords(
-  sector: number,
-  count: number,
-  firewalls: ReadonlyArray<FirewallId>,
-  useCodeSyntax: boolean
-): { words: string[]; kind: "words" | "code" } {
-  if (useCodeSyntax) {
-    const words = createCodeSyntaxPromptWords(count, firewalls);
-    return { words, kind: "code" };
-  }
-
-  const pool = createSectorWordPool(sector);
-  const selected: string[] = [];
-
-  while (selected.length < count) {
-    selected.push(randomItem(pool));
-  }
-
-  let words = [...selected];
+function applyWordFirewalls(words: ReadonlyArray<string>, firewalls: ReadonlyArray<FirewallId>): string[] {
+  let output = [...words];
 
   if (firewalls.includes("scrambler")) {
-    words = shuffle(words);
+    output = shuffle(output);
   }
 
-  if (firewalls.includes("mirror")) {
-    words = words.map((word) => reverseToken(word));
-  }
-
-  return { words, kind: "words" };
+  return output;
 }
 
-function tokenizeSnippet(snippet: string): string[] {
-  return snippet
+function tokenizePassage(passage: string): string[] {
+  return passage
     .split(/\s+/)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
 }
 
-function createCodeSyntaxPromptWords(
+function createPassagePromptWords(
   count: number,
-  firewalls: ReadonlyArray<FirewallId>
+  firewalls: ReadonlyArray<FirewallId>,
+  sourcePool: ReadonlyArray<string>
 ): string[] {
   const output: string[] = [];
 
   while (output.length < count) {
-    const snippetPool = randomItem(CODE_LANGUAGE_POOLS);
-    const snippet = randomItem(snippetPool);
-    const tokens = tokenizeSnippet(snippet);
+    const passage = randomItem(sourcePool);
+    const tokens = tokenizePassage(passage);
+
     for (const token of tokens) {
       output.push(token);
       if (output.length >= count) break;
     }
   }
 
-  let words = output.slice(0, count);
-
-  if (firewalls.includes("scrambler")) {
-    words = shuffle(words);
-  }
-
-  if (firewalls.includes("mirror")) {
-    words = words.map((word) => reverseToken(word));
-  }
-
-  return words;
+  const words = output.slice(0, count);
+  return applyWordFirewalls(words, firewalls);
 }
 
-function maskSingleCharInWord(word: string): string {
-  if (word.length <= 1) return word;
+function createLetterWord(length: number): string {
+  let output = "";
+  for (let i = 0; i < length; i += 1) {
+    output += LETTER_ALPHABET[Math.floor(Math.random() * LETTER_ALPHABET.length)];
+  }
+  return output;
+}
 
-  const candidates: number[] = [];
-  for (let i = 0; i < word.length; i += 1) {
-    if (/[A-Za-z0-9]/.test(word[i])) {
-      candidates.push(i);
-    }
+function createRandomLetterPromptWords(count: number, firewalls: ReadonlyArray<FirewallId>): string[] {
+  const words: string[] = [];
+
+  while (words.length < count) {
+    const length = 4 + Math.floor(Math.random() * 5);
+    words.push(createLetterWord(length));
   }
 
-  if (candidates.length === 0) return word;
+  return applyWordFirewalls(words, firewalls);
+}
 
-  const chosen = randomItem(candidates);
-  return `${word.slice(0, chosen)}*${word.slice(chosen + 1)}`;
+function createPromptWords(
+  sector: number,
+  count: number,
+  firewalls: ReadonlyArray<FirewallId>,
+  mode: PromptContentMode
+): { words: string[]; kind: "words" | "code" } {
+  if (mode === "letters") {
+    const words = createRandomLetterPromptWords(count, firewalls);
+    return { words, kind: "words" };
+  }
+
+  if (mode === "books") {
+    const words = createPassagePromptWords(count, firewalls, BOOK_PASSAGES);
+    return { words, kind: "words" };
+  }
+
+  const quoteWords = createPassagePromptWords(count, firewalls, QUOTE_PASSAGES);
+  if (quoteWords.length >= count) {
+    return { words: quoteWords, kind: "words" };
+  }
+
+  const fallbackPool = createSectorWordPool(sector);
+  const fallbackWords: string[] = [];
+  while (fallbackWords.length < count) {
+    fallbackWords.push(randomItem(fallbackPool));
+  }
+  return { words: applyWordFirewalls(fallbackWords, firewalls), kind: "words" };
 }
 
 function buildMaskedExpectedText(words: ReadonlyArray<string>, kind: "words" | "code"): string {
   if (words.length === 0) return "";
-
-  if (kind === "words") {
-    return words.map((word) => maskSingleCharInWord(word)).join(" ");
-  }
-
-  const candidates: number[] = [];
-  for (let i = 0; i < words.length; i += 1) {
-    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(words[i])) {
-      candidates.push(i);
-    }
-  }
-
-  if (candidates.length === 0) {
-    for (let i = 0; i < words.length; i += 1) {
-      if (words[i].length > 0 && words[i] !== "{") {
-        candidates.push(i);
-      }
-    }
-  }
-
-  if (candidates.length === 0) {
-    return words.join(" ");
-  }
-
-  const maskedIndex = randomItem(candidates);
-  const maskedWords = [...words];
-  maskedWords[maskedIndex] = "*".repeat(Math.max(1, words[maskedIndex].length));
-  return maskedWords.join(" ");
+  if (kind === "words") return words.join(" ");
+  return words.join(" ");
 }
 
 function getScriptCount(id: ScriptId): number {
@@ -1060,10 +893,6 @@ function pickFirewallSetForOperation(
   return [randomItem(NON_FINAL_FIREWALLS)];
 }
 
-function shouldUseCodeSyntaxForSector(sector: number): boolean {
-  return codeSyntaxUnlocked && sector >= 2;
-}
-
 function buildOperation(
   sector: number,
   operationInSector: 1 | 2 | 3,
@@ -1108,7 +937,7 @@ function buildOperation(
     sector,
     getWordCountForSector(sector),
     firewalls,
-    shouldUseCodeSyntaxForSector(sector)
+    promptContentMode
   );
   const promptWords = promptResult.words;
   const expectedText = promptWords.join(" ");
@@ -1296,9 +1125,9 @@ function openShop(nextSector: number): void {
   const interest = clamp(Math.floor(credits / 5), 0, 5);
   if (interest > 0) {
     credits += interest;
-    statusText = `Shop open. Interest payout +${interest} credits.`;
+    statusText = `Workshop open. Interest payout +${interest} credits.`;
   } else {
-    statusText = "Shop open.";
+    statusText = "Workshop open.";
   }
 }
 
@@ -1306,8 +1135,8 @@ function beginOperation(sector: number, operationInSector: 1 | 2 | 3, now: numbe
   operation = buildOperation(sector, operationInSector, now);
   phase = "operation";
 
-  const type = operation.type === "probe" ? "Probe" : operation.type === "intrude" ? "Intrude" : "Firewall Boss";
-  statusText = `Sector ${sector} ${type} started.`;
+  const type = operation.type === "probe" ? "Warmup" : operation.type === "intrude" ? "Flow" : "Challenge";
+  statusText = `Stage ${sector} ${type} started.`;
 }
 
 function advanceAfterOperationClear(now: number): void {
@@ -1328,7 +1157,7 @@ function advanceAfterOperationClear(now: number): void {
   if (sector >= 8) {
     phase = "victory";
     operation = null;
-    statusText = "ROOT_SYSTEM breached. Run complete.";
+    statusText = "Final chapter cleared. Run complete.";
     return;
   }
 
@@ -1373,10 +1202,10 @@ function applyPromptCompletion(now: number): void {
     operation.sector,
     getWordCountForSector(operation.sector),
     operation.firewalls,
-    operation.promptKind === "code"
+    promptContentMode
   );
   setPromptForCurrentOperation(newPrompt.words, now);
-  statusText = "Prompt cleared. Next prompt injected.";
+  statusText = "Passage cleared. New passage loaded.";
 }
 
 function applyWordScoring(word: string, durationSec: number, clean: boolean, wpm: number): void {
@@ -1566,7 +1395,6 @@ export function resetRunState(): void {
   failsafeSpent = false;
   stackOverflowRunAmpBonus = 0;
   zeroDayPicked = false;
-  codeSyntaxUnlocked = false;
 
   scripts = [];
   commands = [];
@@ -1606,17 +1434,13 @@ export function tick(now = performance.now()): void {
 
   const elapsed = now - operation.startedAt;
 
-  if (operation.firewalls.includes("amnesia") && elapsed >= 3000) {
-    operation.promptHidden = true;
-  }
-
   if (operation.firewalls.includes("gc_sweep")) {
     const ticks = Math.floor(elapsed / 10_000);
 
     if (ticks > operation.gcSweepTicksApplied) {
       operation.ampValue = 1;
       operation.gcSweepTicksApplied = ticks;
-      statusText = "GC_SWEEP reset AMP.";
+      statusText = "RESET_WAVE set AMP back to 1.0.";
     }
   }
 
@@ -1631,12 +1455,12 @@ export function tick(now = performance.now()): void {
     return;
   }
 
-  failOperation("Operation timeout. Run failed.");
+  failOperation("Stage timeout. Run failed.");
 }
 
 export function typeChar(char: string, now: number, wpm: number): InputResult {
   if (phase !== "operation" || !operation) {
-    return { accepted: false, correct: false, message: "No active operation." };
+    return { accepted: false, correct: false, message: "No active stage." };
   }
 
   if (char.length !== 1) {
@@ -1730,11 +1554,11 @@ export function typeChar(char: string, now: number, wpm: number): InputResult {
 
 export function backspace(): InputResult {
   if (phase !== "operation" || !operation) {
-    return { accepted: false, correct: false, message: "No active operation." };
+    return { accepted: false, correct: false, message: "No active stage." };
   }
 
   if (hasFirewall("readonly")) {
-    statusText = "READONLY active: backspace disabled.";
+    statusText = "NO_BACKSPACE active: backspace disabled.";
     return { accepted: false, correct: false, message: statusText };
   }
 
@@ -1773,11 +1597,11 @@ export function backspace(): InputResult {
 
 export function skipCurrentOperation(now = performance.now()): ActionResult {
   if (phase !== "operation" || !operation) {
-    return { ok: false, message: "No active operation to skip." };
+    return { ok: false, message: "No active stage to skip." };
   }
 
   if (operation.type === "firewall") {
-    return { ok: false, message: "Firewall Boss operations cannot be skipped." };
+    return { ok: false, message: "Challenge stages cannot be skipped." };
   }
 
   const { sector, operationInSector } = operation;
@@ -1789,7 +1613,7 @@ export function skipCurrentOperation(now = performance.now()): ActionResult {
     beginOperation(sector, 3, now);
   }
 
-  statusText = "Operation skipped. +3 credits.";
+  statusText = "Stage skipped. +3 credits.";
   return { ok: true, message: statusText };
 }
 
@@ -1807,7 +1631,7 @@ function consumeCommandSlot(index: number): CommandId | null {
 
 export function useCommandSlot(index: number): ActionResult {
   if (phase !== "operation" || !operation) {
-    return { ok: false, message: "Commands can be used only during an operation." };
+    return { ok: false, message: "Actions can be used only during a stage." };
   }
 
   const commandId = consumeCommandSlot(index);
@@ -1818,36 +1642,36 @@ export function useCommandSlot(index: number): ActionResult {
   if (commandId === "flush_amp") {
     operation.flushAmpBonusPerWord = round2(operation.flushAmpBonusPerWord + operation.ampValue);
     operation.ampValue = 1;
-    statusText = "--flush-amp executed.";
+    statusText = "Reset Momentum used.";
     return { ok: true, message: statusText };
   }
 
   if (commandId === "payload_burst") {
     operation.payloadBurstWordsLeft += 5;
-    statusText = "--payload-burst armed for next 5 words.";
+    statusText = "Burst Focus armed for next 5 words.";
     return { ok: true, message: statusText };
   }
 
   if (commandId === "spoof_script") {
     if (scripts.length === 0) {
-      statusText = "No scripts to spoof.";
+      statusText = "No boosters to mirror.";
       return { ok: false, message: statusText };
     }
 
     operation.spoofedScript = randomItem(scripts);
-    statusText = `--spoof-script copied ${SCRIPT_DEFS[operation.spoofedScript].label}.`;
+    statusText = `Mirror Booster copied ${SCRIPT_DEFS[operation.spoofedScript].label}.`;
     return { ok: true, message: statusText };
   }
 
   if (commandId === "extend_timeout") {
     operation.durationMs += 10_000;
-    statusText = "--extend-timeout added 10s.";
+    statusText = "Extra Time added 10s.";
     return { ok: true, message: statusText };
   }
 
   if (commandId === "recompile") {
     if (scripts.length === 0) {
-      statusText = "No script available to recompile.";
+      statusText = "No booster available to recast.";
       return { ok: false, message: statusText };
     }
 
@@ -1859,7 +1683,7 @@ export function useCommandSlot(index: number): ActionResult {
     );
 
     if (pool.length === 0) {
-      statusText = "No alternate script in same rarity tier.";
+      statusText = "No alternate booster in the same rarity tier.";
       return { ok: false, message: statusText };
     }
 
@@ -1868,13 +1692,13 @@ export function useCommandSlot(index: number): ActionResult {
     if (tier === "zero-day") {
       zeroDayPicked = scripts.some((id) => SCRIPT_DEFS[id].tier === "zero-day");
     }
-    statusText = `--recompile swapped ${SCRIPT_DEFS[current].label} -> ${SCRIPT_DEFS[next].label}.`;
+    statusText = `Recast Booster swapped ${SCRIPT_DEFS[current].label} -> ${SCRIPT_DEFS[next].label}.`;
     return { ok: true, message: statusText };
   }
 
   if (commandId === "inject") {
     operation.injectWordsLeft += 1;
-    statusText = "--inject primed for next word.";
+    statusText = "Next Word Lift primed for next word.";
     return { ok: true, message: statusText };
   }
 
@@ -1883,16 +1707,16 @@ export function useCommandSlot(index: number): ActionResult {
 
 export function continueFromShop(now = performance.now()): ActionResult {
   if (phase !== "shop") {
-    return { ok: false, message: "Shop is not open." };
+    return { ok: false, message: "Workshop is not open." };
   }
 
   if (!pendingAfterShop) {
-    return { ok: false, message: "No pending operation after shop." };
+    return { ok: false, message: "No pending stage after workshop." };
   }
 
   beginOperation(pendingAfterShop.sector, pendingAfterShop.operationInSector, now);
   pendingAfterShop = null;
-  return { ok: true, message: "Operation started." };
+  return { ok: true, message: "Stage started." };
 }
 
 export function getRerollCost(): number {
@@ -1901,7 +1725,7 @@ export function getRerollCost(): number {
 
 export function rerollShopOffers(): ActionResult {
   if (phase !== "shop") {
-    return { ok: false, message: "Reroll is available only in shop." };
+    return { ok: false, message: "Reroll is available only in workshop." };
   }
 
   const cost = getRerollCost();
@@ -1912,13 +1736,13 @@ export function rerollShopOffers(): ActionResult {
   credits -= cost;
   shopRerolls += 1;
   rollShopOffers();
-  statusText = `Shop rerolled for ${cost} credits.`;
+  statusText = `Workshop rerolled for ${cost} credits.`;
   return { ok: true, message: statusText };
 }
 
 export function purchaseScript(id: ScriptId): ActionResult {
   if (phase !== "shop") {
-    return { ok: false, message: "Scripts can only be purchased in shop." };
+    return { ok: false, message: "Boosters can only be purchased in workshop." };
   }
 
   const definition = SCRIPT_DEFS[id];
@@ -1929,18 +1753,18 @@ export function purchaseScript(id: ScriptId): ActionResult {
   }
 
   if (scripts.length >= getScriptSlotCapacity()) {
-    return { ok: false, message: "No free script slot." };
+    return { ok: false, message: "No free booster slot." };
   }
 
   if (definition.tier === "zero-day" && zeroDayPicked) {
-    return { ok: false, message: "Only one Zero-Day script is allowed per run." };
+    return { ok: false, message: "Only one Zero-Day booster is allowed per run." };
   }
 
   const wouldCreateEchoOverflow =
     id === "echo_chamber" && scripts.length + 1 > Math.max(1, getScriptSlotCapacity() - 2);
 
   if (wouldCreateEchoOverflow) {
-    return { ok: false, message: "Not enough slot capacity for echo_chamber." };
+    return { ok: false, message: "Not enough slot capacity for Double Resonance." };
   }
 
   credits -= cost;
@@ -1957,7 +1781,7 @@ export function purchaseScript(id: ScriptId): ActionResult {
 export function sellScript(id: ScriptId): ActionResult {
   const index = scripts.findIndex((script) => script === id);
   if (index < 0) {
-    return { ok: false, message: "Script not found in loadout." };
+    return { ok: false, message: "Booster not found in loadout." };
   }
 
   const baseCost = getItemCost(SCRIPT_DEFS[id].baseCost);
@@ -1976,7 +1800,7 @@ export function sellScript(id: ScriptId): ActionResult {
 
 export function purchaseCommand(id: CommandId): ActionResult {
   if (phase !== "shop") {
-    return { ok: false, message: "Commands can only be purchased in shop." };
+    return { ok: false, message: "Actions can only be purchased in workshop." };
   }
 
   const definition = COMMAND_DEFS[id];
@@ -1987,7 +1811,7 @@ export function purchaseCommand(id: CommandId): ActionResult {
   }
 
   if (commands.length >= getCommandSlotCapacity()) {
-    return { ok: false, message: "No free command slot." };
+    return { ok: false, message: "No free action slot." };
   }
 
   credits -= cost;
@@ -1998,7 +1822,7 @@ export function purchaseCommand(id: CommandId): ActionResult {
 
 export function purchasePatch(id: PatchId): ActionResult {
   if (phase !== "shop") {
-    return { ok: false, message: "Patches can only be purchased in shop." };
+    return { ok: false, message: "Talents can only be purchased in workshop." };
   }
 
   const definition = PATCH_DEFS[id];
@@ -2010,27 +1834,27 @@ export function purchasePatch(id: PatchId): ActionResult {
 
   const isNewType = patchStacks[id] === 0;
   if (isNewType && getUsedPatchSlots() >= getPatchSlotCapacity()) {
-    return { ok: false, message: "No free patch slot." };
+    return { ok: false, message: "No free talent slot." };
   }
 
   credits -= cost;
   patchStacks[id] += 1;
-  statusText = `Patched ${definition.label} (x${patchStacks[id]}).`;
+  statusText = `Upgraded ${definition.label} (x${patchStacks[id]}).`;
   return { ok: true, message: statusText };
 }
 
 export function purchaseLicense(): ActionResult {
   if (phase !== "shop") {
-    return { ok: false, message: "License can only be purchased in shop." };
+    return { ok: false, message: "Upgrade can only be purchased in workshop." };
   }
 
   if (shopLicenseBought) {
-    return { ok: false, message: "License already purchased this sector." };
+    return { ok: false, message: "Upgrade already purchased this stage." };
   }
 
   const licenseId = shopOffers.license;
   if (!licenseId) {
-    return { ok: false, message: "No license offer available." };
+    return { ok: false, message: "No upgrade offer available." };
   }
 
   const definition = LICENSE_DEFS[licenseId];
@@ -2057,10 +1881,6 @@ export function purchaseLicense(): ActionResult {
 
 function finalizeOperationClear(now: number): void {
   if (!operation) return;
-
-  if (operation.sector === 1 && operation.operationInSector === 3) {
-    codeSyntaxUnlocked = true;
-  }
 
   operationsCleared += 1;
 
@@ -2089,6 +1909,34 @@ export function isShopOpen(): boolean {
 
 export function getStatusText(): string {
   return statusText;
+}
+
+export function getPromptContentMode(): PromptContentMode {
+  return promptContentMode;
+}
+
+export function getPromptContentModeLabel(mode = promptContentMode): string {
+  if (mode === "books") return "Book Passages";
+  if (mode === "letters") return "Random Letters";
+  return "Quotes";
+}
+
+export function setPromptContentMode(mode: PromptContentMode): ActionResult {
+  promptContentMode = mode;
+  statusText = `Text source set to ${getPromptContentModeLabel(mode)}.`;
+
+  if (phase === "operation" && operation) {
+    const promptResult = createPromptWords(
+      operation.sector,
+      getWordCountForSector(operation.sector),
+      operation.firewalls,
+      promptContentMode
+    );
+    operation.promptKind = promptResult.kind;
+    setPromptForCurrentOperation(promptResult.words, performance.now());
+  }
+
+  return { ok: true, message: statusText };
 }
 
 export function getRunScore(): number {
@@ -2261,19 +2109,19 @@ export function canSkipOperation(): boolean {
 
 export function getOperationLabel(): string {
   if (!operation) {
-    return "No active operation";
+    return "No active stage";
   }
 
   const name =
     operation.type === "probe"
-      ? "Probe"
+      ? "Warmup"
       : operation.type === "intrude"
-        ? "Intrude"
+        ? "Flow"
         : operation.sector === 8
-          ? "ROOT_SYSTEM"
-          : "Firewall Boss";
+          ? "Final Chapter"
+          : "Challenge";
 
-  return `Sector ${operation.sector} · ${name}`;
+  return `Stage ${operation.sector} · ${name}`;
 }
 
 export function getOperationBriefing(): OperationBriefing | null {
@@ -2347,7 +2195,7 @@ export function getVictoryState(): boolean {
 
 export function getRootSystemLabel(): string {
   if (operation?.sector === 8 && operation.operationInSector === 3) {
-    return "ROOT_SYSTEM";
+    return "Final Chapter";
   }
   return "";
 }

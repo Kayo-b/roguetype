@@ -1,5 +1,6 @@
 import * as Stats from "../core/stats";
 import * as RogueState from "../game/roguelike-state";
+import { getCommandIcon, getPatchIcon, getScriptIcon } from "./item-icons";
 
 const BEST_RUN_SCORE_STORAGE_KEY = "roguetype.bestRunScore";
 
@@ -104,10 +105,13 @@ function updateOperationState(): void {
   const score = RogueState.getOperationScore();
   const target = RogueState.getOperationTarget();
   const ratio = RogueState.getScoreProgressRatio();
+  const opType = RogueState.getCurrentOperationType();
+  const opLabel = opType === "probe" ? "warmup" : opType === "intrude" ? "flow" : "challenge";
 
-  targetValueElement.textContent = `${score.toLocaleString()} / ${target.toLocaleString()}`;
+  targetValueElement.textContent = score.toLocaleString();
   targetFillElement.style.width = `${Math.round(ratio * 100)}%`;
-  sectorValueElement.textContent = `${RogueState.getCurrentSector()} · ${RogueState.getCurrentOperationType()}`;
+  targetValueElement.title = `Target ${target.toLocaleString()}`;
+  sectorValueElement.textContent = `${RogueState.getCurrentSector()} · ${opLabel}`;
   creditsValueElement.textContent = `${RogueState.getCredits()}c`;
   statusLineElement.textContent = RogueState.getStatusText();
 
@@ -119,8 +123,8 @@ function updateOperationState(): void {
   }
 
   const phase = RogueState.getPhase();
-  if (phase === "operation") phaseValueElement.textContent = "Operation";
-  else if (phase === "shop") phaseValueElement.textContent = "Shop";
+  if (phase === "operation") phaseValueElement.textContent = "Stage";
+  else if (phase === "shop") phaseValueElement.textContent = "Workshop";
   else if (phase === "victory") phaseValueElement.textContent = "Victory";
   else if (phase === "game-over") phaseValueElement.textContent = "Game Over";
   else phaseValueElement.textContent = "Idle";
@@ -138,23 +142,20 @@ function renderScriptSlots(): void {
   const capacity = RogueState.getScriptSlotCapacityValue();
 
   const chips = loadout.map((script) => {
-    const sale = RogueState.getScriptSaleValue(script.id);
-    return `<article class="slotChip" title="${escapeHtml(script.description)}">
-      <div class="slotName">${escapeHtml(script.label)}</div>
-      <button type="button" class="miniBtn" data-sell-script="${script.id}">SELL ${sale}</button>
-    </article>`;
+    const hint = `${script.label} - ${script.description}`;
+    return `<div class="loadoutSquare" title="${escapeHtml(hint)}"><span class="slotIcon">${getScriptIcon(script.id)}</span></div>`;
   });
 
   const emptyCount = Math.max(0, capacity - loadout.length);
   for (let i = 0; i < emptyCount; i += 1) {
-    chips.push('<article class="slotChip isEmpty">[empty]</article>');
+    chips.push('<div class="loadoutSquare isEmpty" aria-hidden="true"></div>');
   }
 
   scriptSlotsElement.innerHTML = chips.join("");
 
   const title = document.getElementById("scriptSlotsTitle");
   if (title) {
-    title.textContent = `Scripts ${loadout.length}/${capacity}`;
+    title.textContent = `Boosters ${loadout.length}/${capacity}`;
   }
 }
 
@@ -167,23 +168,21 @@ function renderCommandSlots(): void {
 
   const chips = slots.map((commandId, index) => {
     if (!commandId) {
-      return '<article class="slotChip isEmpty">[empty]</article>';
+      return '<div class="loadoutSquare isEmpty" aria-hidden="true"></div>';
     }
 
     const def = defs[commandId];
     const disabled = phase !== "operation" ? "disabled" : "";
+    const hint = `${def.label} - ${def.description}`;
 
-    return `<article class="slotChip" title="${escapeHtml(def.description)}">
-      <div class="slotName">${escapeHtml(def.label)}</div>
-      <button type="button" class="miniBtn" data-use-command-slot="${index}" ${disabled}>USE</button>
-    </article>`;
+    return `<button type="button" class="loadoutSquare isAction" title="${escapeHtml(hint)}" data-use-command-slot="${index}" ${disabled}><span class="slotIcon">${getCommandIcon(commandId)}</span></button>`;
   });
 
   commandSlotsElement.innerHTML = chips.join("");
 
   const title = document.getElementById("commandSlotsTitle");
   if (title) {
-    title.textContent = `Commands ${slots.filter(Boolean).length}/${slots.length}`;
+    title.textContent = `Actions ${slots.filter(Boolean).length}/${slots.length}`;
   }
 }
 
@@ -198,22 +197,21 @@ function renderPatchSlots(): void {
 
   const chips = entries.map((id) => {
     const def = defs[id];
-    return `<article class="slotChip" title="${escapeHtml(def.description)}">
-      <div class="slotName">${escapeHtml(def.label)}</div>
-      <div class="stackBadge">x${stacks[id]}</div>
-    </article>`;
+    const hint = `${def.label} - ${def.description}`;
+    const stack = stacks[id] > 1 ? `<span class="stackBadge">${stacks[id]}</span>` : "";
+    return `<div class="loadoutSquare" title="${escapeHtml(hint)}"><span class="slotIcon">${getPatchIcon(id)}</span>${stack}</div>`;
   });
 
   const emptyCount = Math.max(0, RogueState.getPatchSlotCapacityValue() - entries.length);
   for (let i = 0; i < emptyCount; i += 1) {
-    chips.push('<article class="slotChip isEmpty">[empty]</article>');
+    chips.push('<div class="loadoutSquare isEmpty" aria-hidden="true"></div>');
   }
 
   patchSlotsElement.innerHTML = chips.join("");
 
   const title = document.getElementById("patchSlotsTitle");
   if (title) {
-    title.textContent = `Patches ${entries.length}/${RogueState.getPatchSlotCapacityValue()}`;
+    title.textContent = `Talents ${entries.length}/${RogueState.getPatchSlotCapacityValue()}`;
   }
 }
 

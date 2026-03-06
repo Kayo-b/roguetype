@@ -2,13 +2,15 @@ import * as Stats from "./stats";
 import * as RogueState from "../game/roguelike-state";
 import { updateDisplay } from "../ui/typing-display";
 import { updateScoreDisplay } from "../ui/score-display";
+import { getCommandIcon, getPatchIcon, getScriptIcon } from "../ui/item-icons";
 import { playLetterThock, playPerfectWordAccent, primeGameAudio } from "../audio/game-sfx";
 
 const COMMAND_HELP =
-  "Commands: `--start `--reset `--skip `--shop `--continue `--use <slot> `--help";
+  "Commands: `--start `--reset `--skip `--shop `--continue `--use <slot> `--mode <quotes|books|letters> `--help";
 
 let commandOutputElement: HTMLElement | null = null;
 let commandLiveElement: HTMLElement | null = null;
+let contentModeSelectElement: HTMLSelectElement | null = null;
 let popupLayerElement: HTMLElement | null = null;
 
 let storeOverlayElement: HTMLElement | null = null;
@@ -30,7 +32,16 @@ let briefingTargetElement: HTMLElement | null = null;
 let briefingTimeElement: HTMLElement | null = null;
 let briefingSkipElement: HTMLElement | null = null;
 let briefingDebuffsElement: HTMLElement | null = null;
+let briefingLoadoutElement: HTMLElement | null = null;
+let briefingAutoActionsElement: HTMLElement | null = null;
 let briefingCloseButtonElement: HTMLButtonElement | null = null;
+
+let runSummaryOverlayElement: HTMLElement | null = null;
+let summaryScoreElement: HTMLElement | null = null;
+let summaryWpmElement: HTMLElement | null = null;
+let summaryErrorsElement: HTMLElement | null = null;
+let summaryRestartButtonElement: HTMLButtonElement | null = null;
+let summaryCloseButtonElement: HTMLButtonElement | null = null;
 
 let briefingOpen = false;
 let briefingOpenedAt = 0;
@@ -38,6 +49,9 @@ let lastBriefedOperationKey = "";
 let briefingRemainingMsSnapshot = 0;
 let lastRenderedPhase: RogueState.RoguePhase | null = null;
 let lastRenderedOperationKey = "";
+let queuedAutoUseSlots: number[] = [];
+let summaryOpen = false;
+let summaryDismissedForFailure = false;
 
 let commandMode = false;
 let commandBuffer = "";
@@ -77,7 +91,7 @@ function updateCommandLiveLine(): void {
   }
 
   commandLiveElement.textContent =
-    "$ [typing mode] Type prompt directly · Press ` for commands · Ctrl+1..9 use command slots";
+    "$ [typing] Type passage text · Press ` for commands · Ctrl+1..9 use action slots";
 }
 
 function showStoreModal(open: boolean): void {
@@ -94,15 +108,44 @@ function showBriefingModal(open: boolean): void {
   briefingOverlayElement.setAttribute("aria-hidden", open ? "false" : "true");
 }
 
+function showRunSummaryModal(open: boolean): void {
+  if (!runSummaryOverlayElement) return;
+
+  summaryOpen = open;
+  runSummaryOverlayElement.classList.toggle("isOpen", open);
+  runSummaryOverlayElement.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function renderRunSummary(): void {
+  if (!summaryScoreElement || !summaryWpmElement || !summaryErrorsElement) return;
+
+  Stats.stopTimer();
+  summaryScoreElement.textContent = RogueState.getRunScore().toLocaleString();
+  summaryWpmElement.textContent = String(Stats.getWPM());
+  summaryErrorsElement.textContent = String(Stats.getIncorrectChars());
+}
+
+function maybeOpenRunSummary(): void {
+  if (summaryOpen) return;
+  if (!RogueState.getOperationFailureState()) return;
+  if (summaryDismissedForFailure) return;
+
+  renderRunSummary();
+  showRunSummaryModal(true);
+}
+
 function startRun(): void {
   Stats.reset();
   Stats.startTimer();
   RogueState.startNewRun(performance.now());
+  summaryDismissedForFailure = false;
+  showRunSummaryModal(false);
   showStoreModal(false);
   briefingOpen = false;
   briefingOpenedAt = 0;
   lastBriefedOperationKey = "";
   briefingRemainingMsSnapshot = 0;
+  queuedAutoUseSlots = [];
   showBriefingModal(false);
   commandMode = false;
   commandBuffer = "";
@@ -113,11 +156,14 @@ function startRun(): void {
 function resetRun(): void {
   Stats.reset();
   RogueState.resetRunState();
+  summaryDismissedForFailure = false;
+  showRunSummaryModal(false);
   showStoreModal(false);
   briefingOpen = false;
   briefingOpenedAt = 0;
   lastBriefedOperationKey = "";
   briefingRemainingMsSnapshot = 0;
+  queuedAutoUseSlots = [];
   showBriefingModal(false);
   commandMode = false;
   commandBuffer = "";
@@ -125,31 +171,11 @@ function resetRun(): void {
   renderAll();
 }
 
-function interpolateHsl(from: [number, number, number], to: [number, number, number], t: number): string {
-  const clamped = Math.max(0, Math.min(1, t));
-  const h = from[0] + (to[0] - from[0]) * clamped;
-  const s = from[1] + (to[1] - from[1]) * clamped;
-  const l = from[2] + (to[2] - from[2]) * clamped;
-  return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
-}
-
-function getTimerFillColor(ratio: number): string {
-  const clamped = Math.max(0, Math.min(1, ratio));
-  if (clamped >= 0.5) {
-    const t = (1 - clamped) / 0.5;
-    return interpolateHsl([132, 78, 43], [34, 90, 52], t);
-  }
-
-  const t = (0.5 - clamped) / 0.5;
-  return interpolateHsl([34, 90, 52], [2, 86, 56], t);
-}
-
 function updateTimerStrip(): void {
   if (!timerFillElement || !timerTextElement) return;
 
   if (!RogueState.isOperationActive()) {
     timerFillElement.style.width = "0%";
-    timerFillElement.style.backgroundColor = getTimerFillColor(1);
     timerTextElement.textContent = "-";
     return;
   }
@@ -157,14 +183,10 @@ function updateTimerStrip(): void {
   const remainingMs = briefingOpen
     ? briefingRemainingMsSnapshot
     : RogueState.getRemainingMs(performance.now());
-  const totalMs = RogueState.getOperationDurationMs();
-  const ratio = totalMs <= 0 ? 0 : Math.max(0, Math.min(1, remainingMs / totalMs));
-
-  timerFillElement.style.width = `${Math.round(ratio * 100)}%`;
-  timerFillElement.style.backgroundColor = getTimerFillColor(ratio);
+  timerFillElement.style.width = "0%";
 
   const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
-  timerTextElement.textContent = `${seconds}s`;
+  timerTextElement.textContent = String(seconds);
 }
 
 function renderPopups(): void {
@@ -234,6 +256,14 @@ function renderAll(): void {
   } else {
     showStoreModal(false);
   }
+
+  if (!RogueState.getOperationFailureState() && summaryOpen) {
+    showRunSummaryModal(false);
+  }
+  if (!RogueState.getOperationFailureState()) {
+    summaryDismissedForFailure = false;
+  }
+  maybeOpenRunSummary();
 }
 
 function processTypedChar(char: string): void {
@@ -280,15 +310,108 @@ function useCommandSlot(slotIndex: number): void {
   renderAll();
 }
 
+function collectQueuedAutoUseSlots(): void {
+  if (!briefingAutoActionsElement) {
+    queuedAutoUseSlots = [];
+    return;
+  }
+
+  const checkedNodes = briefingAutoActionsElement.querySelectorAll<HTMLInputElement>(
+    "input[data-auto-slot]:checked"
+  );
+
+  queuedAutoUseSlots = Array.from(checkedNodes)
+    .map((node) => Number(node.dataset.autoSlot ?? "-1"))
+    .filter((slot) => Number.isFinite(slot) && slot >= 0)
+    .sort((a, b) => b - a);
+}
+
+function applyQueuedAutoUseSlots(): void {
+  if (queuedAutoUseSlots.length === 0) return;
+
+  const messages: string[] = [];
+  for (const slot of queuedAutoUseSlots) {
+    const result = RogueState.useCommandSlot(slot);
+    messages.push(`#${slot + 1} ${result.message}`);
+  }
+
+  queuedAutoUseSlots = [];
+  setCommandOutput("auto-activate", messages.join(" | "));
+}
+
+function renderBriefingLoadout(): void {
+  if (!briefingLoadoutElement) return;
+
+  const scripts = RogueState.getScriptLoadout();
+  const commandSlots = RogueState.getCommandSlots();
+  const commandDefs = RogueState.getCommandDefinitions();
+  const patchStacks = RogueState.getPatchStacks();
+  const patchDefs = RogueState.getPatchDefinitions();
+
+  const scriptCards = scripts.map(
+    (script) =>
+      `<article class=\"briefingItem\" title=\"${escapeHtml(script.description)}\"><span class=\"briefingItemIcon\">${getScriptIcon(script.id)}</span><span class=\"briefingItemLabel\">${escapeHtml(script.label)}</span></article>`
+  );
+
+  const actionCards = commandSlots
+    .map((id) => {
+      if (!id) return null;
+      const def = commandDefs[id];
+      return `<article class=\"briefingItem\" title=\"${escapeHtml(def.description)}\"><span class=\"briefingItemIcon\">${getCommandIcon(id)}</span><span class=\"briefingItemLabel\">${escapeHtml(def.label)}</span></article>`;
+    })
+    .filter((entry): entry is string => entry !== null);
+
+  const patchEntries = (Object.keys(patchStacks) as RogueState.PatchId[]).filter(
+    (id) => patchStacks[id] > 0
+  );
+  const patchCards = patchEntries.map((id) => {
+    const def = patchDefs[id];
+    return `<article class=\"briefingItem\" title=\"${escapeHtml(def.description)}\"><span class=\"briefingItemIcon\">${getPatchIcon(id)}</span><span class=\"briefingItemLabel\">${escapeHtml(def.label)} x${patchStacks[id]}</span></article>`;
+  });
+
+  const cards = [...scriptCards, ...actionCards, ...patchCards];
+  if (cards.length === 0) {
+    briefingLoadoutElement.innerHTML =
+      '<article class=\"briefingItem isEmpty\"><span class=\"briefingItemLabel\">No items equipped.</span></article>';
+    return;
+  }
+
+  briefingLoadoutElement.innerHTML = cards.join("");
+}
+
+function renderBriefingAutoActions(): void {
+  if (!briefingAutoActionsElement) return;
+
+  const slots = RogueState.getCommandSlots();
+  const defs = RogueState.getCommandDefinitions();
+  const rows = slots
+    .map((id, index) => {
+      if (!id) return null;
+      const def = defs[id];
+      return `<label class=\"briefingAutoRow\"><input type=\"checkbox\" data-auto-slot=\"${index}\" /><span class=\"briefingItemIcon\">${getCommandIcon(id)}</span><span class=\"briefingAutoLabel\">Use ${escapeHtml(def.label)} at stage start</span></label>`;
+    })
+    .filter((entry): entry is string => entry !== null);
+
+  if (rows.length === 0) {
+    briefingAutoActionsElement.innerHTML =
+      '<div class=\"briefingAutoEmpty\">No actions available to auto-activate.</div>';
+    return;
+  }
+
+  briefingAutoActionsElement.innerHTML = rows.join("");
+}
+
 function closeOperationBriefing(): void {
   if (!briefingOpen) return;
 
+  collectQueuedAutoUseSlots();
   const now = performance.now();
   const pausedFor = Math.max(0, now - briefingOpenedAt);
   RogueState.shiftOperationTiming(pausedFor);
   briefingOpen = false;
   briefingRemainingMsSnapshot = 0;
   showBriefingModal(false);
+  applyQueuedAutoUseSlots();
   renderAll();
 }
 
@@ -328,7 +451,7 @@ function maybeOpenOperationBriefing(): void {
   if (briefingDebuffsElement) {
     if (briefing.firewalls.length === 0) {
       briefingDebuffsElement.innerHTML =
-        '<article class="briefingDebuffCard"><div class="briefingDebuffName">NONE</div><div class="briefingDebuffDesc">No firewall debuff on this operation.</div></article>';
+        '<article class="briefingDebuffCard"><div class="briefingDebuffName">NONE</div><div class="briefingDebuffDesc">No active challenge on this stage.</div></article>';
     } else {
       briefingDebuffsElement.innerHTML = briefing.firewalls
         .map(
@@ -338,6 +461,9 @@ function maybeOpenOperationBriefing(): void {
         .join("");
     }
   }
+
+  renderBriefingLoadout();
+  renderBriefingAutoActions();
 
   showBriefingModal(true);
 }
@@ -380,13 +506,13 @@ function executeTerminalCommand(rawInput: string): void {
 
   if (command === "--shop") {
     if (!RogueState.isShopOpen()) {
-      setCommandOutput(rawInput, "Shop is not open.");
+      setCommandOutput(rawInput, "Workshop is not open.");
       return;
     }
 
     refreshStoreModal();
     showStoreModal(true);
-    setCommandOutput(rawInput, "Shop opened.");
+    setCommandOutput(rawInput, "Workshop opened.");
     return;
   }
 
@@ -407,6 +533,22 @@ function executeTerminalCommand(rawInput: string): void {
     }
 
     useCommandSlot(slot - 1);
+    return;
+  }
+
+  if (command === "--mode") {
+    const modeRaw = (args[0] ?? "").toLowerCase();
+    if (modeRaw !== "quotes" && modeRaw !== "books" && modeRaw !== "letters") {
+      setCommandOutput(rawInput, "Usage: `--mode <quotes|books|letters>");
+      return;
+    }
+
+    const result = RogueState.setPromptContentMode(modeRaw);
+    if (contentModeSelectElement) {
+      contentModeSelectElement.value = RogueState.getPromptContentMode();
+    }
+    setCommandOutput(rawInput, result.message);
+    renderAll();
     return;
   }
 
@@ -455,7 +597,7 @@ function refreshStoreModal(): void {
         <div class="storeCardPrice">${price}c</div>
       </div>
       <div class="storeCardDesc">${escapeHtml(def.description)}</div>
-      <button class="storeBtn" type="button" data-buy-script="${id}" ${disabled}>Buy Script</button>
+      <button class="storeBtn" type="button" data-buy-script="${id}" ${disabled}>Buy Booster</button>
     </article>`;
   });
 
@@ -473,7 +615,7 @@ function refreshStoreModal(): void {
         <div class="storeCardPrice">${price}c</div>
       </div>
       <div class="storeCardDesc">${escapeHtml(def.description)}</div>
-      <button class="storeBtn" type="button" data-buy-command="${id}" ${disabled}>Buy Command</button>
+      <button class="storeBtn" type="button" data-buy-command="${id}" ${disabled}>Buy Action</button>
     </article>`;
   });
 
@@ -493,11 +635,11 @@ function refreshStoreModal(): void {
         <div class="storeCardPrice">${price}c</div>
       </div>
       <div class="storeCardDesc">${escapeHtml(def.description)}</div>
-      <button class="storeBtn" type="button" data-buy-patch="${id}" ${disabled}>Buy Patch</button>
+      <button class="storeBtn" type="button" data-buy-patch="${id}" ${disabled}>Buy Talent</button>
     </article>`;
   });
 
-  let licenseCard = '<article class="storeCard isEmpty">No license available.</article>';
+  let licenseCard = '<article class="storeCard isEmpty">No upgrade available.</article>';
   if (offers.license) {
     const def = licenseDefs[offers.license];
     const price = RogueState.getLicensePrice(def.id);
@@ -510,7 +652,7 @@ function refreshStoreModal(): void {
         <div class="storeCardPrice">${price}c</div>
       </div>
       <div class="storeCardDesc">${escapeHtml(def.description)}</div>
-      <button class="storeBtn" type="button" data-buy-license="${def.id}" ${disabled}>Buy License</button>
+      <button class="storeBtn" type="button" data-buy-license="${def.id}" ${disabled}>Buy Upgrade</button>
     </article>`;
   }
 
@@ -523,7 +665,7 @@ function refreshStoreModal(): void {
   storeRerollButtonElement.textContent = `REROLL ${rerollCost}c`;
   storeRerollButtonElement.disabled = RogueState.getCredits() < rerollCost;
 
-  storeCloseButtonElement.textContent = "Start Next Sector";
+  storeCloseButtonElement.textContent = "Start Next Stage";
 }
 
 function bindStoreEvents(): void {
@@ -573,7 +715,7 @@ function bindStoreEvents(): void {
     const buyLicenseButton = target.closest<HTMLButtonElement>("[data-buy-license]");
     if (buyLicenseButton) {
       const result = RogueState.purchaseLicense();
-      setCommandOutput("buy license", result.message);
+      setCommandOutput("buy upgrade", result.message);
       renderAll();
       return;
     }
@@ -613,6 +755,7 @@ function bindTopControls(): void {
   const startRunBtn = document.getElementById("startRunBtn") as HTMLButtonElement | null;
   const resetRunBtn = document.getElementById("resetRunBtn") as HTMLButtonElement | null;
   const skipOperationBtn = document.getElementById("skipOperationBtn") as HTMLButtonElement | null;
+  contentModeSelectElement = document.getElementById("contentModeSelect") as HTMLSelectElement | null;
 
   startRunBtn?.addEventListener("click", () => {
     primeGameAudio();
@@ -630,6 +773,19 @@ function bindTopControls(): void {
     setCommandOutput("skip", result.message);
     renderAll();
   });
+
+  if (contentModeSelectElement) {
+    contentModeSelectElement.value = RogueState.getPromptContentMode();
+    contentModeSelectElement.addEventListener("change", () => {
+      const rawMode = contentModeSelectElement?.value;
+      if (!rawMode) return;
+      if (rawMode !== "quotes" && rawMode !== "books" && rawMode !== "letters") return;
+
+      const result = RogueState.setPromptContentMode(rawMode);
+      setCommandOutput(`mode ${rawMode}`, result.message);
+      renderAll();
+    });
+  }
 }
 
 function bindBriefingEvents(): void {
@@ -639,10 +795,31 @@ function bindBriefingEvents(): void {
   briefingTimeElement = document.getElementById("briefingTime");
   briefingSkipElement = document.getElementById("briefingSkip");
   briefingDebuffsElement = document.getElementById("briefingDebuffs");
+  briefingLoadoutElement = document.getElementById("briefingLoadout");
+  briefingAutoActionsElement = document.getElementById("briefingAutoActions");
   briefingCloseButtonElement = document.getElementById("briefingCloseBtn") as HTMLButtonElement | null;
 
   briefingCloseButtonElement?.addEventListener("click", () => {
     closeOperationBriefing();
+  });
+}
+
+function bindRunSummaryEvents(): void {
+  runSummaryOverlayElement = document.getElementById("runSummaryOverlay");
+  summaryScoreElement = document.getElementById("summaryScore");
+  summaryWpmElement = document.getElementById("summaryWpm");
+  summaryErrorsElement = document.getElementById("summaryErrors");
+  summaryRestartButtonElement = document.getElementById("summaryRestartBtn") as HTMLButtonElement | null;
+  summaryCloseButtonElement = document.getElementById("summaryCloseBtn") as HTMLButtonElement | null;
+
+  summaryRestartButtonElement?.addEventListener("click", () => {
+    primeGameAudio();
+    startRun();
+  });
+
+  summaryCloseButtonElement?.addEventListener("click", () => {
+    summaryDismissedForFailure = true;
+    showRunSummaryModal(false);
   });
 }
 
@@ -690,6 +867,15 @@ function bindKeyboardCapture(): void {
     }
 
     primeGameAudio();
+
+    if (summaryOpen) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        summaryDismissedForFailure = true;
+        showRunSummaryModal(false);
+      }
+      return;
+    }
 
     if (briefingOpen) {
       if (event.key === "Enter" || event.key === "Escape") {
@@ -763,6 +949,7 @@ export function initInputHandler(): void {
 
   bindStoreEvents();
   bindBriefingEvents();
+  bindRunSummaryEvents();
   bindTopControls();
   bindKeyboardCapture();
 

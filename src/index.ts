@@ -14,4 +14,4 @@ window.setInterval(() => {
   tickGame();
 }, 180);
 
-console.log("RogueType initialized");
+console.log("RogueType Reader initialized");

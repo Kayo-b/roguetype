@@ -1,198 +1,183 @@
 <!DOCTYPE html>
-<html lang="en" data-webtui-theme="dark">
+<html lang="en" data-webtui-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Terminal Rogue Type</title>
+    <title>RogueType Reader</title>
   </head>
   <body>
     <div id="app">
-      <div id="layoutShell" box-="square">
-        <header id="topBar" box-="square">
-          <div id="titleBlock">
-            <pre id="appAsciiLogo" aria-label="Rogue Type ASCII logo">____   ___   ____ _   _ _____      _____ _   _ ____  _____
-|  _ \ / _ \ / ___| | | | ____|    |_   _| | | |  _ \| ____|
-| |_) | | | | |  _| | | |  _| _____ | | | | | | |_) |  _|
-|  _ &lt;| |_| | |_| | |_| | |__|_____| | | | |_| |  __/| |___
-|_| \_\\___/ \____|\___/|_____|      |_|  \___/|_|   |_____|</pre>
+      <div id="layoutShell">
+        <header id="topBar">
+          <div id="topLeft">
+            <div id="appTitle">RogueType</div>
+            <div id="topControls">
+              <button id="startRunBtn" type="button">Start Run</button>
+              <button id="resetRunBtn" type="button">Reset</button>
+              <button id="skipOperationBtn" type="button">Skip</button>
+              <label for="contentModeSelect" class="controlLabel">Text</label>
+              <select id="contentModeSelect">
+                <option value="quotes">Quotes</option>
+                <option value="books">Book Passages</option>
+                <option value="letters">Random Letters</option>
+              </select>
+            </div>
           </div>
-          <div id="topControls">
-            <button id="startRunBtn" type="button" box-="square">Start Run</button>
-            <button id="resetRunBtn" type="button" box-="square">Reset</button>
-            <button id="skipOperationBtn" type="button" box-="square">Skip Probe/Intrude</button>
+
+          <div id="hudStrip">
+            <span class="metricInline"><span class="metricLabel">Run</span><span id="runScoreValue" class="metricValue scoreValue">0</span></span>
+            <span class="metricInline"><span class="metricLabel">Best</span><span id="bestScoreValue" class="metricValue scoreValue">0</span></span>
+            <span class="metricInline"><span class="metricLabel">OUT</span><span id="outValue" class="metricValue">0</span></span>
+            <span class="metricInline"><span class="metricLabel">AMP</span><span id="ampValue" class="metricValue">1.00x</span></span>
+            <span class="metricInline"><span class="metricLabel">Streak</span><span id="streakValue" class="metricValue">0</span></span>
+            <span class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
           </div>
         </header>
 
-        <div id="layoutGrid">
-          <main id="centerColumn">
-            <section id="typingTerminal" box-="square" shear-="both">
-              <header id="terminalHeader">
-                <div>
-                  <div id="promptTitle">Sector 1 · Probe</div>
-                </div>
-                <div id="hudStrip">
-                  <span class="metricInline"><span class="metricLabel">Run</span><span id="runScoreValue" class="metricValue scoreValue">0</span></span>
-                  <span class="metricInline"><span class="metricLabel">Best</span><span id="bestScoreValue" class="metricValue scoreValue">0</span></span>
-                  <span class="metricInline"><span class="metricLabel">OUT</span><span id="outValue" class="metricValue">0</span></span>
-                  <span class="metricInline"><span class="metricLabel">AMP</span><span id="ampValue" class="metricValue">1.00x</span></span>
-                  <span class="metricInline"><span class="metricLabel">Streak</span><span id="streakValue" class="metricValue">0</span></span>
-                  <span class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
-                </div>
-              </header>
+        <main id="centerColumn">
+          <section id="typingTerminal">
+            <div id="playMeta">
+              <div id="timerText" class="playMetaValue">-</div>
+              <div id="targetValue" class="playMetaValue">0</div>
+            </div>
 
-              <section id="operationInline" box-="square">
-                <div id="targetLine">
-                  <div class="progressLabel">Score / Target</div>
-                  <div id="targetValue" class="progressValue">0 / 0</div>
-                </div>
+            <section id="promptBlock">
+              <div id="promptContent"></div>
+              <div id="scorePopupLayer" aria-live="polite"></div>
 
-                <div class="progressTrack">
-                  <div id="targetFill" class="progressFill"></div>
-                </div>
+              <div id="floatingScripts" class="floatingLoadout">
+                <div id="scriptSlotsTitle" class="visuallyHidden">Boosters 0/3</div>
+                <div id="scriptSlots" class="loadoutSquares"></div>
+              </div>
 
-                <section id="timerWrap">
-                  <div id="timerBar">
-                    <div id="timerFill"></div>
-                  </div>
-                  <div id="timerText">-</div>
-                </section>
-              </section>
-
-              <section id="promptBlock">
-                <div id="promptContent"></div>
-                <div id="scorePopupLayer" aria-live="polite"></div>
-              </section>
-
-              <section id="terminalBashPane">
-                <pre id="commandLive" class="commandBlock">$ [typing mode] Press ` to enter commands</pre>
-                <pre id="commandOutput" class="commandBlock">$ ready
-Use `--start to begin a run.</pre>
-              </section>
+              <div id="floatingUtility" class="floatingLoadout">
+                <div id="commandSlotsTitle" class="visuallyHidden">Actions 0/2</div>
+                <div id="commandSlots" class="loadoutSquares"></div>
+                <div id="patchSlotsTitle" class="visuallyHidden">Talents 0/2</div>
+                <div id="patchSlots" class="loadoutSquares"></div>
+              </div>
             </section>
-          </main>
 
-          <aside class="panel sidePanel" box-="square" shear-="top">
-            <h2 class="panelTitle">Loadout</h2>
-            <div id="loadoutRows">
-              <div class="loadoutRow">
-                <div class="panelSectionTitle" id="scriptSlotsTitle">Scripts 0/3</div>
-                <div id="scriptSlots" class="slotGrid"></div>
-              </div>
+            <section id="commandDock">
+              <pre id="commandLive" class="commandBlock">$ [typing] Type passage text · Press ` for commands</pre>
+              <pre id="commandOutput" class="commandBlock">$ ready
+Use `--start to begin a run.</pre>
+            </section>
 
-              <div class="loadoutRow">
-                <div class="panelSectionTitle" id="commandSlotsTitle">Commands 0/2</div>
-                <div id="commandSlots" class="slotGrid"></div>
-              </div>
-
-              <div class="loadoutRow">
-                <div class="panelSectionTitle" id="patchSlotsTitle">Patches 0/2</div>
-                <div id="patchSlots" class="slotGrid"></div>
-              </div>
-            </div>
-          </aside>
-
-          <aside id="statsPanel" class="panel sidePanel" box-="square" shear-="top">
-            <h2 class="panelTitle">Stats</h2>
-
-            <div id="statsChipGrid">
-              <div class="kvChip"><span>Phase</span><span id="phaseValue">Idle</span></div>
-              <div class="kvChip"><span>Sector · Op</span><span id="sectorValue">1 · probe</span></div>
-              <div class="kvChip"><span>Credits</span><span id="creditsValue">4c</span></div>
+            <div id="stateReadout" class="visuallyHidden">
+              <span id="promptTitle">Stage 1 · Warmup</span>
+              <span id="promptFirewall">No active challenge</span>
+              <span id="phaseValue">Idle</span>
+              <span id="sectorValue">1 · warmup</span>
+              <span id="creditsValue">4c</span>
+              <span id="statusLine">Type `--start to begin.</span>
+              <span id="lastEventLine">-</span>
             </div>
 
-            <div class="statsMetaRows">
-              <div class="inlineMetaBlock">
-                <div class="metaLabel">Firewall</div>
-                <div id="promptFirewall" class="stateBlock stateInline">No firewall modifier</div>
-              </div>
-
-              <div class="inlineMetaBlock">
-                <div class="metaLabel">Status</div>
-                <pre id="statusLine" class="stateBlock">Type `--start to begin.</pre>
-              </div>
-
-              <div class="inlineMetaBlock">
-                <div class="metaLabel">Last Event</div>
-                <pre id="lastEventLine" class="stateBlock">-</pre>
-              </div>
+            <div class="visuallyHidden" aria-hidden="true">
+              <div class="progressTrack"><div id="targetFill" class="progressFill"></div></div>
+              <div id="timerBar"><div id="timerFill"></div></div>
             </div>
-          </aside>
-        </div>
+          </section>
+        </main>
       </div>
 
       <div id="briefingOverlay" aria-hidden="true">
-        <section id="briefingModal" box-="square" shear-="top">
+        <section id="briefingModal">
           <header id="briefingHeader">
             <div>
-              <h2 id="briefingTitle">Operation Briefing</h2>
-              <div id="briefingSubtitle">Sector 1 · Probe</div>
+              <h2 id="briefingTitle">Stage Briefing</h2>
+              <div id="briefingSubtitle">Stage 1 · Warmup</div>
             </div>
-            <button id="briefingCloseBtn" type="button" box-="square">Deploy</button>
+            <button id="briefingCloseBtn" type="button">Begin</button>
           </header>
 
           <div id="briefingMetaGrid">
             <div class="briefingMetaCard">
-              <div class="briefingMetaLabel">Target Score</div>
+              <div class="briefingMetaLabel">Target</div>
               <div id="briefingTarget" class="briefingMetaValue">0</div>
             </div>
             <div class="briefingMetaCard">
-              <div class="briefingMetaLabel">Time Limit</div>
+              <div class="briefingMetaLabel">Time</div>
               <div id="briefingTime" class="briefingMetaValue">0s</div>
             </div>
             <div class="briefingMetaCard">
-              <div class="briefingMetaLabel">Skip Allowed</div>
+              <div class="briefingMetaLabel">Skip</div>
               <div id="briefingSkip" class="briefingMetaValue">No</div>
             </div>
           </div>
 
-          <div class="briefingBlockTitle">Active Modifier / Debuff</div>
+          <div class="briefingBlockTitle">Challenge</div>
           <div id="briefingDebuffs" class="briefingList"></div>
 
-          <div class="briefingBlockTitle">Notes</div>
-          <ul id="briefingNotes" class="briefingNotes">
-            <li>Type directly on the prompt line.</li>
-            <li>Use backtick (`) to enter command mode.</li>
-            <li>Use Ctrl+1..9 to trigger command slots.</li>
-          </ul>
+          <div class="briefingBlockTitle">Current Items</div>
+          <div id="briefingLoadout" class="briefingLoadoutGrid"></div>
+
+          <div class="briefingBlockTitle">Auto Activate Actions</div>
+          <div id="briefingAutoActions" class="briefingAutoList"></div>
         </section>
       </div>
 
       <div id="storeOverlay" aria-hidden="true">
-        <section id="storeModal" box-="square" shear-="top">
+        <section id="storeModal">
           <header id="storeHeader">
             <div>
-              <h2 id="storeTitle">Black Market Terminal</h2>
+              <h2 id="storeTitle">Workshop</h2>
               <div id="storeCreditsLine">Credits: <span id="storeCreditsValue">0c</span></div>
             </div>
             <div id="storeActions">
-              <button id="storeRerollBtn" type="button" box-="square">REROLL 5c</button>
-              <button id="storeCloseBtn" type="button" box-="square">Start Next Sector</button>
+              <button id="storeRerollBtn" type="button">REROLL 5c</button>
+              <button id="storeCloseBtn" type="button">Start Next Stage</button>
             </div>
           </header>
 
           <div class="storeGrid">
             <section class="storeColumn">
-              <h3 class="storeSectionTitle">Scripts</h3>
+              <h3 class="storeSectionTitle">Boosters</h3>
               <div id="storeScripts" class="storeList"></div>
             </section>
 
             <section class="storeColumn">
-              <h3 class="storeSectionTitle">Commands</h3>
+              <h3 class="storeSectionTitle">Actions</h3>
               <div id="storeCommands" class="storeList"></div>
             </section>
 
             <section class="storeColumn">
-              <h3 class="storeSectionTitle">Patches</h3>
+              <h3 class="storeSectionTitle">Talents</h3>
               <div id="storePatches" class="storeList"></div>
             </section>
 
             <section class="storeColumn">
-              <h3 class="storeSectionTitle">License (1/sector)</h3>
+              <h3 class="storeSectionTitle">Upgrade (1/stage)</h3>
               <div id="storeLicense" class="storeList"></div>
             </section>
           </div>
 
-          <div id="storeStatus" class="subtleMessage">Shop open.</div>
+          <div id="storeStatus" class="subtleMessage">Workshop open.</div>
+        </section>
+      </div>
+
+      <div id="runSummaryOverlay" aria-hidden="true">
+        <section id="runSummaryModal">
+          <h2 id="runSummaryTitle">Run Summary</h2>
+          <div id="runSummaryGrid">
+            <div class="summaryStat">
+              <div class="summaryLabel">Score</div>
+              <div id="summaryScore" class="summaryValue">0</div>
+            </div>
+            <div class="summaryStat">
+              <div class="summaryLabel">WPM</div>
+              <div id="summaryWpm" class="summaryValue">0</div>
+            </div>
+            <div class="summaryStat">
+              <div class="summaryLabel">Errors</div>
+              <div id="summaryErrors" class="summaryValue">0</div>
+            </div>
+          </div>
+          <div id="runSummaryActions">
+            <button id="summaryRestartBtn" type="button">Start New Run</button>
+            <button id="summaryCloseBtn" type="button">Close</button>
+          </div>
         </section>
       </div>
     </div>
