@@ -1,8 +1,17 @@
 import * as Stats from "../core/stats";
 import * as RogueState from "../game/roguelike-state";
+import { getEffectiveGameRules } from "../game/game-settings";
 import { getCommandIcon, getPatchIcon, getScriptIcon } from "./item-icons";
 
-const BEST_RUN_SCORE_STORAGE_KEY = "roguetype.bestRunScore";
+const LEGACY_BEST_RUN_SCORE_STORAGE_KEY = "roguetype.bestRunScore";
+const RUN_METRICS_STORAGE_KEY = "roguetype.runMetrics.v1";
+
+interface StoredRunMetrics {
+  bestScore: number;
+  bestWpm: number;
+  totalRuns: number;
+  totalWpm: number;
+}
 
 let runScoreElement: HTMLElement | null = null;
 let bestScoreElement: HTMLElement | null = null;
@@ -10,6 +19,8 @@ let outValueElement: HTMLElement | null = null;
 let ampValueElement: HTMLElement | null = null;
 let streakValueElement: HTMLElement | null = null;
 let wpmValueElement: HTMLElement | null = null;
+let bestWpmValueElement: HTMLElement | null = null;
+let avgWpmValueElement: HTMLElement | null = null;
 
 let targetValueElement: HTMLElement | null = null;
 let targetFillElement: HTMLElement | null = null;
@@ -22,12 +33,19 @@ let phaseValueElement: HTMLElement | null = null;
 let scriptSlotsElement: HTMLElement | null = null;
 let commandSlotsElement: HTMLElement | null = null;
 let patchSlotsElement: HTMLElement | null = null;
-let bestRunScore = 0;
-let bestRunScoreLoaded = false;
 
-function readStoredBestRunScore(): number {
+let runMetrics: StoredRunMetrics = { bestScore: 0, bestWpm: 0, totalRuns: 0, totalWpm: 0 };
+let runMetricsLoaded = false;
+
+function normalizeNonNegativeInt(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  if (value <= 0) return 0;
+  return Math.floor(value);
+}
+
+function readLegacyBestScore(): number {
   try {
-    const raw = localStorage.getItem(BEST_RUN_SCORE_STORAGE_KEY);
+    const raw = localStorage.getItem(LEGACY_BEST_RUN_SCORE_STORAGE_KEY);
     if (!raw) return 0;
 
     const parsed = Number.parseInt(raw, 10);
@@ -38,18 +56,56 @@ function readStoredBestRunScore(): number {
   }
 }
 
-function writeStoredBestRunScore(value: number): void {
+function readStoredRunMetrics(): StoredRunMetrics {
+  const legacyBestScore = readLegacyBestScore();
+
   try {
-    localStorage.setItem(BEST_RUN_SCORE_STORAGE_KEY, String(Math.max(0, Math.floor(value))));
+    const raw = localStorage.getItem(RUN_METRICS_STORAGE_KEY);
+    if (!raw) {
+      return { bestScore: legacyBestScore, bestWpm: 0, totalRuns: 0, totalWpm: 0 };
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== "object" || parsed === null) {
+      return { bestScore: legacyBestScore, bestWpm: 0, totalRuns: 0, totalWpm: 0 };
+    }
+
+    const record = parsed as Record<string, unknown>;
+    const bestScore = Math.max(legacyBestScore, normalizeNonNegativeInt(record.bestScore));
+    const bestWpm = normalizeNonNegativeInt(record.bestWpm);
+    const totalRuns = normalizeNonNegativeInt(record.totalRuns);
+    const totalWpm = normalizeNonNegativeInt(record.totalWpm);
+
+    return {
+      bestScore,
+      bestWpm,
+      totalRuns,
+      totalWpm,
+    };
+  } catch {
+    return { bestScore: legacyBestScore, bestWpm: 0, totalRuns: 0, totalWpm: 0 };
+  }
+}
+
+function writeStoredRunMetrics(value: StoredRunMetrics): void {
+  try {
+    localStorage.setItem(RUN_METRICS_STORAGE_KEY, JSON.stringify(value));
+    localStorage.setItem(LEGACY_BEST_RUN_SCORE_STORAGE_KEY, String(value.bestScore));
   } catch {
     // Ignore storage failures (private mode / blocked storage).
   }
 }
 
-function ensureBestRunScoreLoaded(): void {
-  if (bestRunScoreLoaded) return;
-  bestRunScore = readStoredBestRunScore();
-  bestRunScoreLoaded = true;
+function ensureRunMetricsLoaded(): void {
+  if (runMetricsLoaded) return;
+  runMetrics = readStoredRunMetrics();
+  runMetricsLoaded = true;
+}
+
+function getAverageWpm(): number {
+  ensureRunMetricsLoaded();
+  if (runMetrics.totalRuns <= 0 || runMetrics.totalWpm <= 0) return 0;
+  return Math.round(runMetrics.totalWpm / runMetrics.totalRuns);
 }
 
 function escapeHtml(value: string): string {
@@ -68,25 +124,40 @@ function updateMainMetrics(): void {
     !outValueElement ||
     !ampValueElement ||
     !streakValueElement ||
-    !wpmValueElement
+    !wpmValueElement ||
+    !bestWpmValueElement ||
+    !avgWpmValueElement
   ) {
     return;
   }
 
-  ensureBestRunScoreLoaded();
+  ensureRunMetricsLoaded();
 
+  const rules = getEffectiveGameRules();
   const runScore = RogueState.getRunScore();
-  if (runScore > bestRunScore) {
-    bestRunScore = runScore;
-    writeStoredBestRunScore(bestRunScore);
+
+  if (rules.scoreEnabled && runScore > runMetrics.bestScore) {
+    runMetrics.bestScore = runScore;
+    writeStoredRunMetrics(runMetrics);
   }
 
-  runScoreElement.textContent = runScore.toLocaleString();
-  bestScoreElement.textContent = bestRunScore.toLocaleString();
-  outValueElement.textContent = Math.round(RogueState.getOutValue()).toLocaleString();
-  ampValueElement.textContent = `${RogueState.getAmpValue().toFixed(2)}x`;
-  streakValueElement.textContent = String(RogueState.getCleanChain());
+  if (rules.scoreEnabled) {
+    runScoreElement.textContent = runScore.toLocaleString();
+    bestScoreElement.textContent = runMetrics.bestScore.toLocaleString();
+    outValueElement.textContent = Math.round(RogueState.getOutValue()).toLocaleString();
+    ampValueElement.textContent = `${RogueState.getAmpValue().toFixed(2)}x`;
+    streakValueElement.textContent = String(RogueState.getCleanChain());
+  } else {
+    runScoreElement.textContent = "-";
+    bestScoreElement.textContent = "-";
+    outValueElement.textContent = "-";
+    ampValueElement.textContent = "-";
+    streakValueElement.textContent = "-";
+  }
+
   wpmValueElement.textContent = String(Stats.getWPM());
+  bestWpmValueElement.textContent = String(runMetrics.bestWpm);
+  avgWpmValueElement.textContent = String(getAverageWpm());
 }
 
 function updateOperationState(): void {
@@ -102,15 +173,22 @@ function updateOperationState(): void {
     return;
   }
 
+  const rules = getEffectiveGameRules();
   const score = RogueState.getOperationScore();
   const target = RogueState.getOperationTarget();
   const ratio = RogueState.getScoreProgressRatio();
   const opType = RogueState.getCurrentOperationType();
   const opLabel = opType === "probe" ? "warmup" : opType === "intrude" ? "flow" : "challenge";
 
-  targetValueElement.textContent = score.toLocaleString();
+  if (rules.scoreEnabled) {
+    targetValueElement.textContent = score.toLocaleString();
+    targetValueElement.title = `Target ${target.toLocaleString()}`;
+  } else {
+    targetValueElement.textContent = `${Math.round(ratio * 100)}%`;
+    targetValueElement.title = "Prompt completion";
+  }
+
   targetFillElement.style.width = `${Math.round(ratio * 100)}%`;
-  targetValueElement.title = `Target ${target.toLocaleString()}`;
   sectorValueElement.textContent = `${RogueState.getCurrentSector()} · ${opLabel}`;
   creditsValueElement.textContent = `${RogueState.getCredits()}c`;
   statusLineElement.textContent = RogueState.getStatusText();
@@ -215,6 +293,25 @@ function renderPatchSlots(): void {
   }
 }
 
+export function recordCompletedRunStats(score: number, wpm: number): void {
+  ensureRunMetricsLoaded();
+
+  const safeScore = Math.max(0, Math.floor(score));
+  const safeWpm = Math.max(0, Math.floor(wpm));
+
+  if (safeScore > runMetrics.bestScore) {
+    runMetrics.bestScore = safeScore;
+  }
+
+  if (safeWpm > runMetrics.bestWpm) {
+    runMetrics.bestWpm = safeWpm;
+  }
+
+  runMetrics.totalRuns += 1;
+  runMetrics.totalWpm += safeWpm;
+  writeStoredRunMetrics(runMetrics);
+}
+
 export function initScoreDisplay(): void {
   runScoreElement = document.getElementById("runScoreValue");
   bestScoreElement = document.getElementById("bestScoreValue");
@@ -222,6 +319,8 @@ export function initScoreDisplay(): void {
   ampValueElement = document.getElementById("ampValue");
   streakValueElement = document.getElementById("streakValue");
   wpmValueElement = document.getElementById("wpmValue");
+  bestWpmValueElement = document.getElementById("bestWpmValue");
+  avgWpmValueElement = document.getElementById("avgWpmValue");
 
   targetValueElement = document.getElementById("targetValue");
   targetFillElement = document.getElementById("targetFill");

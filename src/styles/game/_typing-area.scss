@@ -29,7 +29,8 @@
 }
 
 #topControls button,
-#topControls select {
+#topControls select,
+#topControls input[type="file"] {
   border-radius: 8px;
   padding: 0.24rem 0.55rem;
   font-size: 0.9rem;
@@ -37,13 +38,60 @@
 }
 
 #topControls button:hover,
-#topControls select:hover {
+#topControls select:hover,
+#topControls input[type="file"]:hover {
   background: color-mix(in srgb, #000 12%, var(--panel));
 }
 
 .controlLabel {
   color: var(--text-dim);
   font-size: 0.86rem;
+}
+
+.controlToggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-dim);
+  font-size: 0.84rem;
+}
+
+.controlToggleLabel input {
+  accent-color: var(--accent);
+}
+
+#customSettingsPanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.34rem 0.45rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+}
+
+#customSettingsPanel button,
+#customSettingsPanel input[type="file"],
+#customSettingsPanel select {
+  border-radius: 8px;
+  padding: 0.24rem 0.55rem;
+  font-size: 0.86rem;
+  background: color-mix(in srgb, #000 8%, var(--panel));
+}
+
+#customChapterRange {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.customStatus {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.isHidden {
+  display: none !important;
 }
 
 #centerColumn {

@@ -1,4 +1,5 @@
 import { Howler } from "howler";
+import { getEffectiveGameRules } from "../game/game-settings";
 
 const MASTER_GAIN = 0.48;
 const MIN_THOCK_INTERVAL_MS = 14;
@@ -10,6 +11,10 @@ let lastThockAt = 0;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function soundEffectsEnabled(): boolean {
+  return getEffectiveGameRules().soundEffectsEnabled;
 }
 
 function getFallbackContext(): AudioContext | null {
@@ -111,6 +116,8 @@ export function primeGameAudio(): void {
 }
 
 export function playLetterThock(): void {
+  if (!soundEffectsEnabled()) return;
+
   const ctx = getContext();
   if (!ctx) return;
   if (ctx.state === "closed") return;
@@ -137,6 +144,8 @@ export function playLetterThock(): void {
 }
 
 export function playPerfectWordAccent(ampLevel: number, cleanChain: number): void {
+  if (!soundEffectsEnabled()) return;
+
   const ctx = getContext();
   if (!ctx) return;
   if (ctx.state === "closed") return;

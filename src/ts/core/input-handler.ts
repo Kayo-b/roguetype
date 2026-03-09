@@ -1,9 +1,26 @@
 import * as Stats from "./stats";
 import * as RogueState from "../game/roguelike-state";
 import { updateDisplay } from "../ui/typing-display";
-import { updateScoreDisplay } from "../ui/score-display";
+import { recordCompletedRunStats, updateScoreDisplay } from "../ui/score-display";
 import { getCommandIcon, getPatchIcon, getScriptIcon } from "../ui/item-icons";
 import { playLetterThock, playPerfectWordAccent, primeGameAudio } from "../audio/game-sfx";
+import {
+  clearCustomContentEntries,
+  getCustomContentChapterRange,
+  getCustomContentChapters,
+  getCustomContentSourceName,
+  getCustomContentSourceType,
+  getCustomContentTruncatedAfterChapterTitle,
+  getEffectiveGameRules,
+  getGameSettings,
+  parseCustomContentCsv,
+  setCustomChapterRange,
+  setCustomContentEntries,
+  setGameMode,
+  setHardcoreEnabled,
+  setSoundEffectsEnabled,
+} from "../game/game-settings";
+import { importEpubCustomContent } from "../game/epub-import";
 
 const COMMAND_HELP =
   "Commands: `--start `--reset `--skip `--shop `--continue `--use <slot> `--mode <quotes|books|letters> `--help";
@@ -11,7 +28,19 @@ const COMMAND_HELP =
 let commandOutputElement: HTMLElement | null = null;
 let commandLiveElement: HTMLElement | null = null;
 let contentModeSelectElement: HTMLSelectElement | null = null;
+let gameModeSelectElement: HTMLSelectElement | null = null;
+let hardcoreToggleElement: HTMLInputElement | null = null;
+let soundToggleElement: HTMLInputElement | null = null;
+let customPanelElement: HTMLElement | null = null;
+let customContentInputElement: HTMLInputElement | null = null;
+let customChapterRangeElement: HTMLElement | null = null;
+let customChapterStartSelectElement: HTMLSelectElement | null = null;
+let customChapterEndSelectElement: HTMLSelectElement | null = null;
+let customContentStatusElement: HTMLElement | null = null;
+let customContentClearButtonElement: HTMLButtonElement | null = null;
 let popupLayerElement: HTMLElement | null = null;
+let floatingScriptsElement: HTMLElement | null = null;
+let floatingUtilityElement: HTMLElement | null = null;
 
 let storeOverlayElement: HTMLElement | null = null;
 let storeScriptsElement: HTMLElement | null = null;
@@ -37,8 +66,11 @@ let briefingAutoActionsElement: HTMLElement | null = null;
 let briefingCloseButtonElement: HTMLButtonElement | null = null;
 
 let runSummaryOverlayElement: HTMLElement | null = null;
+let summaryScoreStatElement: HTMLElement | null = null;
 let summaryScoreElement: HTMLElement | null = null;
 let summaryWpmElement: HTMLElement | null = null;
+let summaryAccuracyElement: HTMLElement | null = null;
+let summaryTimeElement: HTMLElement | null = null;
 let summaryErrorsElement: HTMLElement | null = null;
 let summaryRestartButtonElement: HTMLButtonElement | null = null;
 let summaryCloseButtonElement: HTMLButtonElement | null = null;
@@ -51,10 +83,13 @@ let lastRenderedPhase: RogueState.RoguePhase | null = null;
 let lastRenderedOperationKey = "";
 let queuedAutoUseSlots: number[] = [];
 let summaryOpen = false;
-let summaryDismissedForFailure = false;
+let summaryDismissedForEndState = false;
 
 let commandMode = false;
 let commandBuffer = "";
+let completionStatsRecorded = false;
+let lastCustomChapterOptionsSignature = "";
+let lastCustomChapterRangeVisible: boolean | null = null;
 
 function escapeHtml(value: string): string {
   return value
@@ -94,6 +129,187 @@ function updateCommandLiveLine(): void {
     "$ [typing] Type passage text · Press ` for commands · Ctrl+1..9 use action slots";
 }
 
+function updateCustomContentStatus(): void {
+  if (!customContentStatusElement) return;
+
+  const settings = getGameSettings();
+  const count = settings.custom.entries.length;
+  const sourceName = getCustomContentSourceName();
+  const sourceType = getCustomContentSourceType();
+  const truncatedAfter = getCustomContentTruncatedAfterChapterTitle();
+
+  if (count <= 0) {
+    customContentStatusElement.textContent = "No custom text loaded.";
+    return;
+  }
+
+  if (sourceType === "epub") {
+    const chapters = getCustomContentChapters();
+    const range = getCustomContentChapterRange();
+    const firstChapter = chapters[0]?.id ?? 1;
+    const lastChapter = chapters[chapters.length - 1]?.id ?? firstChapter;
+    const startChapter = range.start ?? firstChapter;
+    const endChapter = range.end ?? lastChapter;
+    const titleSuffix = sourceName ? ` from ${sourceName}` : "";
+    const truncatedSuffix = truncatedAfter
+      ? ` Truncated before chapter: ${truncatedAfter}.`
+      : "";
+    customContentStatusElement.textContent = `${count} entries across ${chapters.length} chapters${titleSuffix}. Range ${startChapter}-${endChapter}.${truncatedSuffix}`;
+    return;
+  }
+
+  if (sourceName) {
+    customContentStatusElement.textContent = `${count} entries loaded from ${sourceName}.`;
+    return;
+  }
+
+  customContentStatusElement.textContent = `${count} custom text entries loaded.`;
+}
+
+function updateCustomChapterRangeControls(): void {
+  if (!customChapterRangeElement || !customChapterStartSelectElement || !customChapterEndSelectElement) {
+    return;
+  }
+
+  const sourceType = getCustomContentSourceType();
+  const chapters = getCustomContentChapters();
+  const showRange = sourceType === "epub" && chapters.length > 0;
+
+  if (lastCustomChapterRangeVisible !== showRange) {
+    customChapterRangeElement.classList.toggle("isHidden", !showRange);
+    lastCustomChapterRangeVisible = showRange;
+  }
+
+  if (!showRange) {
+    if (lastCustomChapterOptionsSignature !== "") {
+      customChapterStartSelectElement.innerHTML = "";
+      customChapterEndSelectElement.innerHTML = "";
+      lastCustomChapterOptionsSignature = "";
+    }
+    return;
+  }
+
+  const optionsSignature = chapters
+    .map((chapter) => `${chapter.id}:${chapter.title}:${chapter.startEntry}:${chapter.endEntry}`)
+    .join("|");
+
+  if (optionsSignature !== lastCustomChapterOptionsSignature) {
+    const optionsHtml = chapters
+      .map((chapter) => `<option value="${chapter.id}">${chapter.id}. ${escapeHtml(chapter.title)}</option>`)
+      .join("");
+    customChapterStartSelectElement.innerHTML = optionsHtml;
+    customChapterEndSelectElement.innerHTML = optionsHtml;
+    lastCustomChapterOptionsSignature = optionsSignature;
+  }
+
+  const range = getCustomContentChapterRange();
+  const fallbackStart = chapters[0].id;
+  const fallbackEnd = chapters[chapters.length - 1].id;
+  const resolvedStart = String(range.start ?? fallbackStart);
+  const resolvedEnd = String(range.end ?? fallbackEnd);
+  const activeElement = document.activeElement;
+
+  if (activeElement !== customChapterStartSelectElement) {
+    if (customChapterStartSelectElement.value !== resolvedStart) {
+      customChapterStartSelectElement.value = resolvedStart;
+    }
+  }
+
+  if (activeElement !== customChapterEndSelectElement) {
+    if (customChapterEndSelectElement.value !== resolvedEnd) {
+      customChapterEndSelectElement.value = resolvedEnd;
+    }
+  }
+
+  const disabled = chapters.length <= 1;
+  if (customChapterStartSelectElement.disabled !== disabled) {
+    customChapterStartSelectElement.disabled = disabled;
+  }
+  if (customChapterEndSelectElement.disabled !== disabled) {
+    customChapterEndSelectElement.disabled = disabled;
+  }
+}
+
+function isEpubFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith(".epub") || file.type === "application/epub+zip";
+}
+
+function isZenMode(): boolean {
+  return getEffectiveGameRules().mode === "zen";
+}
+
+function shouldShowRunSummaryForCurrentState(): boolean {
+  if (isZenMode()) return false;
+  return RogueState.getOperationFailureState();
+}
+
+function updateModeControlsState(): void {
+  const settings = getGameSettings();
+  const rules = getEffectiveGameRules();
+
+  if (gameModeSelectElement) {
+    gameModeSelectElement.value = settings.mode;
+  }
+
+  if (hardcoreToggleElement) {
+    hardcoreToggleElement.checked = settings.hardcoreEnabled;
+  }
+
+  if (soundToggleElement) {
+    soundToggleElement.checked = settings.soundEffectsEnabled;
+  }
+
+  if (customPanelElement) {
+    customPanelElement.classList.toggle("isHidden", false);
+  }
+
+  if (contentModeSelectElement) {
+    contentModeSelectElement.disabled = false;
+  }
+
+  const appElement = document.getElementById("app");
+  if (appElement) {
+    appElement.classList.toggle("isZenMode", rules.mode === "zen");
+    appElement.classList.toggle("isGameMode", rules.mode === "game");
+  }
+
+  const zenHiddenIds = ["hudStrip", "playMeta", "commandDock", "skipOperationBtn"];
+  for (const id of zenHiddenIds) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    node.classList.toggle("isHidden", rules.mode === "zen");
+  }
+
+  const scoreMetricIds = ["runMetric", "bestMetric", "outMetric", "ampMetric", "streakMetric"];
+  for (const id of scoreMetricIds) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    node.classList.toggle("isHidden", !rules.scoreEnabled);
+  }
+
+  if (floatingScriptsElement) {
+    floatingScriptsElement.classList.toggle("isHidden", !rules.itemsShopEnabled);
+  }
+
+  if (floatingUtilityElement) {
+    floatingUtilityElement.classList.toggle("isHidden", !rules.itemsShopEnabled);
+  }
+
+  updateCustomContentStatus();
+  updateCustomChapterRangeControls();
+}
+
+function finalizeRunMetricsIfNeeded(): void {
+  if (completionStatsRecorded) return;
+  const phase = RogueState.getPhase();
+  if (phase !== "game-over" && phase !== "victory") return;
+
+  Stats.stopTimer();
+  recordCompletedRunStats(RogueState.getRunScore(), Stats.getWPM());
+  completionStatsRecorded = true;
+}
+
 function showStoreModal(open: boolean): void {
   if (!storeOverlayElement) return;
 
@@ -117,18 +333,34 @@ function showRunSummaryModal(open: boolean): void {
 }
 
 function renderRunSummary(): void {
-  if (!summaryScoreElement || !summaryWpmElement || !summaryErrorsElement) return;
+  if (
+    !summaryScoreElement ||
+    !summaryWpmElement ||
+    !summaryAccuracyElement ||
+    !summaryTimeElement ||
+    !summaryErrorsElement
+  ) {
+    return;
+  }
 
   Stats.stopTimer();
+  const zenMode = isZenMode();
+
+  if (summaryScoreStatElement) {
+    summaryScoreStatElement.classList.toggle("isHidden", zenMode);
+  }
+
   summaryScoreElement.textContent = RogueState.getRunScore().toLocaleString();
   summaryWpmElement.textContent = String(Stats.getWPM());
+  summaryAccuracyElement.textContent = `${Stats.getAccuracy()}%`;
+  summaryTimeElement.textContent = `${Stats.getElapsedTime().toFixed(1)}s`;
   summaryErrorsElement.textContent = String(Stats.getIncorrectChars());
 }
 
 function maybeOpenRunSummary(): void {
   if (summaryOpen) return;
-  if (!RogueState.getOperationFailureState()) return;
-  if (summaryDismissedForFailure) return;
+  if (!shouldShowRunSummaryForCurrentState()) return;
+  if (summaryDismissedForEndState) return;
 
   renderRunSummary();
   showRunSummaryModal(true);
@@ -138,7 +370,8 @@ function startRun(): void {
   Stats.reset();
   Stats.startTimer();
   RogueState.startNewRun(performance.now());
-  summaryDismissedForFailure = false;
+  completionStatsRecorded = false;
+  summaryDismissedForEndState = false;
   showRunSummaryModal(false);
   showStoreModal(false);
   briefingOpen = false;
@@ -156,7 +389,8 @@ function startRun(): void {
 function resetRun(): void {
   Stats.reset();
   RogueState.resetRunState();
-  summaryDismissedForFailure = false;
+  completionStatsRecorded = false;
+  summaryDismissedForEndState = false;
   showRunSummaryModal(false);
   showStoreModal(false);
   briefingOpen = false;
@@ -173,10 +407,17 @@ function resetRun(): void {
 
 function updateTimerStrip(): void {
   if (!timerFillElement || !timerTextElement) return;
+  const rules = getEffectiveGameRules();
 
   if (!RogueState.isOperationActive()) {
     timerFillElement.style.width = "0%";
     timerTextElement.textContent = "-";
+    return;
+  }
+
+  if (!rules.timeEnabled) {
+    timerFillElement.style.width = "0%";
+    timerTextElement.textContent = "∞";
     return;
   }
 
@@ -239,8 +480,20 @@ function keepViewportPinnedToTopOnRoundChange(): void {
   lastRenderedOperationKey = operationKey;
 }
 
+function syncStatsPromptSnapshot(): void {
+  if (!RogueState.isOperationActive()) {
+    Stats.updatePromptSnapshot("", "");
+    return;
+  }
+
+  Stats.updatePromptSnapshot(RogueState.getExpectedText(), RogueState.getTypedText());
+}
+
 function renderAll(): void {
   keepViewportPinnedToTopOnRoundChange();
+  syncStatsPromptSnapshot();
+  finalizeRunMetricsIfNeeded();
+  updateModeControlsState();
   updateDisplay();
   updateScoreDisplay();
   updateTimerStrip();
@@ -257,11 +510,12 @@ function renderAll(): void {
     showStoreModal(false);
   }
 
-  if (!RogueState.getOperationFailureState() && summaryOpen) {
+  const shouldShowSummary = shouldShowRunSummaryForCurrentState();
+  if (!shouldShowSummary && summaryOpen) {
     showRunSummaryModal(false);
   }
-  if (!RogueState.getOperationFailureState()) {
-    summaryDismissedForFailure = false;
+  if (!shouldShowSummary) {
+    summaryDismissedForEndState = false;
   }
   maybeOpenRunSummary();
 }
@@ -416,6 +670,7 @@ function closeOperationBriefing(): void {
 }
 
 function maybeOpenOperationBriefing(): void {
+  if (isZenMode()) return;
   if (!RogueState.isOperationActive()) return;
   if (briefingOpen) return;
 
@@ -441,7 +696,7 @@ function maybeOpenOperationBriefing(): void {
   }
 
   if (briefingTimeElement) {
-    briefingTimeElement.textContent = `${briefing.timeLimitSec}s`;
+    briefingTimeElement.textContent = briefing.timeLimitSec > 0 ? `${briefing.timeLimitSec}s` : "Off";
   }
 
   if (briefingSkipElement) {
@@ -756,6 +1011,24 @@ function bindTopControls(): void {
   const resetRunBtn = document.getElementById("resetRunBtn") as HTMLButtonElement | null;
   const skipOperationBtn = document.getElementById("skipOperationBtn") as HTMLButtonElement | null;
   contentModeSelectElement = document.getElementById("contentModeSelect") as HTMLSelectElement | null;
+  gameModeSelectElement = document.getElementById("gameModeSelect") as HTMLSelectElement | null;
+  hardcoreToggleElement = document.getElementById("hardcoreToggle") as HTMLInputElement | null;
+  soundToggleElement = document.getElementById("soundToggle") as HTMLInputElement | null;
+  customPanelElement = document.getElementById("customSettingsPanel");
+  customContentInputElement = document.getElementById("customContentInput") as HTMLInputElement | null;
+  customChapterRangeElement = document.getElementById("customChapterRange");
+  customChapterStartSelectElement = document.getElementById(
+    "customChapterStartSelect"
+  ) as HTMLSelectElement | null;
+  customChapterEndSelectElement = document.getElementById(
+    "customChapterEndSelect"
+  ) as HTMLSelectElement | null;
+  customContentStatusElement = document.getElementById("customContentStatus");
+  customContentClearButtonElement = document.getElementById(
+    "customContentClearBtn"
+  ) as HTMLButtonElement | null;
+  floatingScriptsElement = document.getElementById("floatingScripts");
+  floatingUtilityElement = document.getElementById("floatingUtility");
 
   startRunBtn?.addEventListener("click", () => {
     primeGameAudio();
@@ -786,6 +1059,122 @@ function bindTopControls(): void {
       renderAll();
     });
   }
+
+  gameModeSelectElement?.addEventListener("change", () => {
+    const nextMode = gameModeSelectElement?.value;
+    if (nextMode !== "game" && nextMode !== "zen") return;
+
+    setGameMode(nextMode);
+    updateModeControlsState();
+    setCommandOutput("mode", `Game mode set to ${nextMode}.`);
+    resetRun();
+  });
+
+  hardcoreToggleElement?.addEventListener("change", () => {
+    const checked = Boolean(hardcoreToggleElement?.checked);
+    setHardcoreEnabled(checked);
+    updateModeControlsState();
+    setCommandOutput("hardcore", checked ? "Hardcore enabled." : "Hardcore disabled.");
+    renderAll();
+  });
+
+  soundToggleElement?.addEventListener("change", () => {
+    const checked = Boolean(soundToggleElement?.checked);
+    setSoundEffectsEnabled(checked);
+    updateModeControlsState();
+    setCommandOutput("sound", checked ? "Sound effects enabled." : "Sound effects disabled.");
+    renderAll();
+  });
+
+  customChapterStartSelectElement?.addEventListener("change", () => {
+    const start = Number(customChapterStartSelectElement?.value ?? "");
+    const end = Number(customChapterEndSelectElement?.value ?? "");
+    const range = setCustomChapterRange(
+      Number.isFinite(start) ? start : null,
+      Number.isFinite(end) ? end : null
+    );
+    setCommandOutput(
+      "chapter range",
+      `Using chapters ${range.start ?? "-"} to ${range.end ?? "-"}.`
+    );
+    updateModeControlsState();
+    resetRun();
+  });
+
+  customChapterEndSelectElement?.addEventListener("change", () => {
+    const start = Number(customChapterStartSelectElement?.value ?? "");
+    const end = Number(customChapterEndSelectElement?.value ?? "");
+    const range = setCustomChapterRange(
+      Number.isFinite(start) ? start : null,
+      Number.isFinite(end) ? end : null
+    );
+    setCommandOutput(
+      "chapter range",
+      `Using chapters ${range.start ?? "-"} to ${range.end ?? "-"}.`
+    );
+    updateModeControlsState();
+    resetRun();
+  });
+
+  customContentInputElement?.addEventListener("change", async () => {
+    const file = customContentInputElement?.files?.[0];
+    if (!file) return;
+
+    try {
+      if (isEpubFile(file)) {
+        setCommandOutput("custom import", `Importing EPUB ${file.name}...`);
+        const result = await importEpubCustomContent(file, 5_000);
+        const storedCount = setCustomContentEntries(result.entries, result.sourceName, {
+          sourceType: "epub",
+          chapters: result.chapters,
+          dedupe: false,
+          truncatedAfterChapterTitle: result.truncatedAfterChapterTitle,
+        });
+        const warningSuffix =
+          result.warnings.length > 0 ? ` ${result.warnings.length} sections skipped.` : "";
+        const truncatedSuffix = result.truncatedAfterChapterTitle
+          ? ` Truncated before chapter: ${result.truncatedAfterChapterTitle}.`
+          : "";
+        setCommandOutput(
+          "custom import",
+          `Loaded ${storedCount} entries from EPUB (${result.chapters.length}/${result.discoveredChapterCount} chapters).${truncatedSuffix}${warningSuffix}`
+        );
+      } else {
+        const text = await file.text();
+        const parsedEntries = parseCustomContentCsv(text);
+        if (parsedEntries.length === 0) {
+          setCommandOutput("custom import", "No valid entries were found in the uploaded file.");
+        } else {
+          const storedCount = setCustomContentEntries(parsedEntries, file.name, {
+            sourceType: "plain",
+            dedupe: true,
+          });
+          setCommandOutput(
+            "custom import",
+            `Loaded ${storedCount} custom entries from ${file.name}.`
+          );
+        }
+      }
+    } catch {
+      setCommandOutput("custom import", "Failed to import custom content file.");
+    }
+
+    if (customContentInputElement) {
+      customContentInputElement.value = "";
+    }
+
+    updateModeControlsState();
+    resetRun();
+  });
+
+  customContentClearButtonElement?.addEventListener("click", () => {
+    clearCustomContentEntries();
+    setCommandOutput("custom clear", "Custom content cleared.");
+    updateModeControlsState();
+    resetRun();
+  });
+
+  updateModeControlsState();
 }
 
 function bindBriefingEvents(): void {
@@ -806,8 +1195,11 @@ function bindBriefingEvents(): void {
 
 function bindRunSummaryEvents(): void {
   runSummaryOverlayElement = document.getElementById("runSummaryOverlay");
+  summaryScoreStatElement = document.getElementById("summaryScoreStat");
   summaryScoreElement = document.getElementById("summaryScore");
   summaryWpmElement = document.getElementById("summaryWpm");
+  summaryAccuracyElement = document.getElementById("summaryAccuracy");
+  summaryTimeElement = document.getElementById("summaryTime");
   summaryErrorsElement = document.getElementById("summaryErrors");
   summaryRestartButtonElement = document.getElementById("summaryRestartBtn") as HTMLButtonElement | null;
   summaryCloseButtonElement = document.getElementById("summaryCloseBtn") as HTMLButtonElement | null;
@@ -818,7 +1210,7 @@ function bindRunSummaryEvents(): void {
   });
 
   summaryCloseButtonElement?.addEventListener("click", () => {
-    summaryDismissedForFailure = true;
+    summaryDismissedForEndState = true;
     showRunSummaryModal(false);
   });
 }
@@ -871,7 +1263,7 @@ function bindKeyboardCapture(): void {
     if (summaryOpen) {
       if (event.key === "Escape") {
         event.preventDefault();
-        summaryDismissedForFailure = true;
+        summaryDismissedForEndState = true;
         showRunSummaryModal(false);
       }
       return;
@@ -885,19 +1277,19 @@ function bindKeyboardCapture(): void {
       return;
     }
 
-    if (event.ctrlKey && event.key >= "1" && event.key <= "9") {
+    if (!isZenMode() && event.ctrlKey && event.key >= "1" && event.key <= "9") {
       event.preventDefault();
       const slot = Number(event.key) - 1;
       useCommandSlot(slot);
       return;
     }
 
-    if (commandMode) {
+    if (!isZenMode() && commandMode) {
       handleCommandModeKey(event);
       return;
     }
 
-    if (event.key === "`") {
+    if (!isZenMode() && event.key === "`") {
       event.preventDefault();
       commandMode = true;
       commandBuffer = "";

@@ -15,6 +15,19 @@
               <button id="startRunBtn" type="button">Start Run</button>
               <button id="resetRunBtn" type="button">Reset</button>
               <button id="skipOperationBtn" type="button">Skip</button>
+              <label for="gameModeSelect" class="controlLabel">Mode</label>
+              <select id="gameModeSelect">
+                <option value="game">Game</option>
+                <option value="zen">Zen</option>
+              </select>
+              <label class="controlToggleLabel" for="hardcoreToggle">
+                <input id="hardcoreToggle" type="checkbox" />
+                Hardcore
+              </label>
+              <label class="controlToggleLabel" for="soundToggle">
+                <input id="soundToggle" type="checkbox" checked />
+                Sound
+              </label>
               <label for="contentModeSelect" class="controlLabel">Text</label>
               <select id="contentModeSelect">
                 <option value="quotes">Quotes</option>
@@ -22,15 +35,33 @@
                 <option value="letters">Random Letters</option>
               </select>
             </div>
+            <div id="customSettingsPanel" class="isHidden">
+              <label class="controlLabel" for="customContentInput">Custom Text / EPUB</label>
+              <input
+                id="customContentInput"
+                type="file"
+                accept=".csv,text/csv,.txt,text/plain,.epub,application/epub+zip"
+              />
+              <button id="customContentClearBtn" type="button">Clear</button>
+              <div id="customChapterRange" class="isHidden">
+                <label class="controlLabel" for="customChapterStartSelect">From</label>
+                <select id="customChapterStartSelect"></select>
+                <label class="controlLabel" for="customChapterEndSelect">To</label>
+                <select id="customChapterEndSelect"></select>
+              </div>
+              <div id="customContentStatus" class="customStatus">No custom text loaded.</div>
+            </div>
           </div>
 
           <div id="hudStrip">
-            <span class="metricInline"><span class="metricLabel">Run</span><span id="runScoreValue" class="metricValue scoreValue">0</span></span>
-            <span class="metricInline"><span class="metricLabel">Best</span><span id="bestScoreValue" class="metricValue scoreValue">0</span></span>
-            <span class="metricInline"><span class="metricLabel">OUT</span><span id="outValue" class="metricValue">0</span></span>
-            <span class="metricInline"><span class="metricLabel">AMP</span><span id="ampValue" class="metricValue">1.00x</span></span>
-            <span class="metricInline"><span class="metricLabel">Streak</span><span id="streakValue" class="metricValue">0</span></span>
-            <span class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
+            <span id="runMetric" class="metricInline"><span class="metricLabel">Run</span><span id="runScoreValue" class="metricValue scoreValue">0</span></span>
+            <span id="bestMetric" class="metricInline"><span class="metricLabel">Best</span><span id="bestScoreValue" class="metricValue scoreValue">0</span></span>
+            <span id="outMetric" class="metricInline"><span class="metricLabel">OUT</span><span id="outValue" class="metricValue">0</span></span>
+            <span id="ampMetric" class="metricInline"><span class="metricLabel">AMP</span><span id="ampValue" class="metricValue">1.00x</span></span>
+            <span id="streakMetric" class="metricInline"><span class="metricLabel">Streak</span><span id="streakValue" class="metricValue">0</span></span>
+            <span id="wpmMetric" class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
+            <span id="bestWpmMetric" class="metricInline"><span class="metricLabel">Best WPM</span><span id="bestWpmValue" class="metricValue">0</span></span>
+            <span id="avgWpmMetric" class="metricInline"><span class="metricLabel">Avg WPM</span><span id="avgWpmValue" class="metricValue">0</span></span>
           </div>
         </header>
 
@@ -161,7 +192,7 @@ Use `--start to begin a run.</pre>
         <section id="runSummaryModal">
           <h2 id="runSummaryTitle">Run Summary</h2>
           <div id="runSummaryGrid">
-            <div class="summaryStat">
+            <div id="summaryScoreStat" class="summaryStat">
               <div class="summaryLabel">Score</div>
               <div id="summaryScore" class="summaryValue">0</div>
             </div>
@@ -170,12 +201,20 @@ Use `--start to begin a run.</pre>
               <div id="summaryWpm" class="summaryValue">0</div>
             </div>
             <div class="summaryStat">
+              <div class="summaryLabel">Accuracy</div>
+              <div id="summaryAccuracy" class="summaryValue">0%</div>
+            </div>
+            <div class="summaryStat">
+              <div class="summaryLabel">Time</div>
+              <div id="summaryTime" class="summaryValue">0.0s</div>
+            </div>
+            <div class="summaryStat">
               <div class="summaryLabel">Errors</div>
               <div id="summaryErrors" class="summaryValue">0</div>
             </div>
           </div>
           <div id="runSummaryActions">
-            <button id="summaryRestartBtn" type="button">Start New Run</button>
+            <button id="summaryRestartBtn" type="button">Run Again</button>
             <button id="summaryCloseBtn" type="button">Close</button>
           </div>
         </section>

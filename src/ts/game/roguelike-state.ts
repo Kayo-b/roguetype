@@ -1,3 +1,11 @@
+import {
+  getCustomContentBookmarkCursor,
+  getCustomContentSourceType,
+  getEffectiveGameRules,
+  getFilteredCustomContentEntries,
+  setCustomContentBookmarkCursor,
+} from "./game-settings";
+
 export type RoguePhase = "idle" | "operation" | "shop" | "game-over" | "victory";
 export type OperationType = "probe" | "intrude" | "firewall";
 export type PromptContentMode = "quotes" | "books" | "letters";
@@ -201,7 +209,8 @@ interface ActiveOperation {
 }
 
 const STARTING_CREDITS = 4;
-const OPERATION_BASE_REWARD = 4;
+const OPERATION_BASE_REWARD = 2;
+const ZEN_PROMPT_WORD_COUNT = 8;
 
 const BASE_SCRIPT_SLOTS = 3;
 const MAX_SCRIPT_SLOTS = 3;
@@ -209,10 +218,10 @@ const BASE_COMMAND_SLOTS = 2;
 const BASE_PATCH_SLOTS = 2;
 
 const SECTOR_CONFIGS: SectorConfig[] = [
-  { sector: 1, scoreTarget: 500, timeLimitSec: 60 },
-  { sector: 2, scoreTarget: 1200, timeLimitSec: 55 },
-  { sector: 3, scoreTarget: 2800, timeLimitSec: 50 },
-  { sector: 4, scoreTarget: 6000, timeLimitSec: 48 },
+  { sector: 1, scoreTarget: 1200, timeLimitSec: 60 },
+  { sector: 2, scoreTarget: 2400, timeLimitSec: 55 },
+  { sector: 3, scoreTarget: 5800, timeLimitSec: 50 },
+  { sector: 4, scoreTarget: 11600, timeLimitSec: 48 },
   { sector: 5, scoreTarget: 13000, timeLimitSec: 45 },
   { sector: 6, scoreTarget: 28000, timeLimitSec: 42 },
   { sector: 7, scoreTarget: 60000, timeLimitSec: 40 },
@@ -675,6 +684,17 @@ let shopLicenseBought = false;
 
 let popupCounter = 1;
 let popupQueue: ScorePopup[] = [];
+let customContentEntryCursor = 0;
+
+const EMPTY_PATCH_STACKS: Readonly<Record<PatchId, number>> = {
+  patch_clean: 0,
+  patch_burst: 0,
+  patch_finish: 0,
+  patch_deep: 0,
+  patch_recover: 0,
+};
+
+const EMPTY_SHOP_OFFERS: ShopOffers = { scripts: [], commands: [], patches: [], license: null };
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -682,6 +702,40 @@ function round2(value: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function getRules() {
+  return getEffectiveGameRules();
+}
+
+function isZenMode(): boolean {
+  return getRules().mode === "zen";
+}
+
+function isHardcoreEnabled(): boolean {
+  return getRules().hardcoreEnabled;
+}
+
+function isItemsShopEnabled(): boolean {
+  return getRules().itemsShopEnabled;
+}
+
+function isScoreEnabled(): boolean {
+  return getRules().scoreEnabled;
+}
+
+function isTimeEnabled(): boolean {
+  return getRules().timeEnabled;
+}
+
+function getLicenseCount(id: LicenseId): number {
+  if (!isItemsShopEnabled()) return 0;
+  return licenseCounts[id];
+}
+
+function getPatchCount(id: PatchId): number {
+  if (!isItemsShopEnabled()) return 0;
+  return patchStacks[id];
 }
 
 function randomItem<T>(items: ReadonlyArray<T>): T {
@@ -782,12 +836,85 @@ function createRandomLetterPromptWords(count: number, firewalls: ReadonlyArray<F
   return applyWordFirewalls(words, firewalls);
 }
 
+function tokenizeCustomEntry(entry: string): string[] {
+  return entry
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function createCustomPromptWords(count: number, firewalls: ReadonlyArray<FirewallId>): string[] {
+  const entries = getFilteredCustomContentEntries();
+  if (entries.length === 0) {
+    return createRandomLetterPromptWords(count, firewalls);
+  }
+
+  const sourceType = getCustomContentSourceType();
+  const useSequentialOrder = sourceType === "epub";
+  const words: string[] = [];
+
+  if (sourceType === "epub" && isZenMode()) {
+    while (customContentEntryCursor < entries.length) {
+      const entryIndex = customContentEntryCursor;
+      const tokens = tokenizeCustomEntry(entries[entryIndex]);
+      customContentEntryCursor += 1;
+      if (tokens.length === 0) continue;
+      setCustomContentBookmarkCursor(entryIndex);
+      return applyWordFirewalls(tokens, firewalls);
+    }
+    return [];
+  }
+
+  if (useSequentialOrder) {
+    let attempts = 0;
+    const maxAttempts = Math.max(entries.length * 3, count * 6);
+
+    while (words.length < count && attempts < maxAttempts) {
+      const entryIndex = customContentEntryCursor % entries.length;
+      customContentEntryCursor = (customContentEntryCursor + 1) % entries.length;
+      attempts += 1;
+
+      const tokens = tokenizeCustomEntry(entries[entryIndex]);
+      if (tokens.length === 0) continue;
+
+      for (const token of tokens) {
+        words.push(token);
+        if (words.length >= count) break;
+      }
+    }
+  } else {
+    while (words.length < count) {
+      const entry = randomItem(entries);
+      const tokens = tokenizeCustomEntry(entry);
+      if (tokens.length === 0) {
+        continue;
+      }
+
+      for (const token of tokens) {
+        words.push(token);
+        if (words.length >= count) break;
+      }
+    }
+  }
+
+  if (words.length === 0) {
+    return createRandomLetterPromptWords(count, firewalls);
+  }
+
+  return applyWordFirewalls(words.slice(0, count), firewalls);
+}
+
 function createPromptWords(
   sector: number,
   count: number,
   firewalls: ReadonlyArray<FirewallId>,
   mode: PromptContentMode
 ): { words: string[]; kind: "words" | "code" } {
+  if (getRules().useCustomContent) {
+    const words = createCustomPromptWords(count, firewalls);
+    return { words, kind: "words" };
+  }
+
   if (mode === "letters") {
     const words = createRandomLetterPromptWords(count, firewalls);
     return { words, kind: "words" };
@@ -829,6 +956,7 @@ function getScriptCount(id: ScriptId): number {
 }
 
 function hasScript(id: ScriptId): boolean {
+  if (!isItemsShopEnabled()) return false;
   return getScriptCount(id) > 0;
 }
 
@@ -849,21 +977,21 @@ function getAmpAdditionMultiplier(): number {
 }
 
 function getWpmThreshold(): number {
-  return Math.max(10, 60 - licenseCounts.license_threshold * 10);
+  return Math.max(10, 60 - getLicenseCount("license_threshold") * 10);
 }
 
 function getScriptSlotCapacity(): number {
-  const fromLicense = Math.min(MAX_SCRIPT_SLOTS, BASE_SCRIPT_SLOTS + licenseCounts.license_slots);
+  const fromLicense = Math.min(MAX_SCRIPT_SLOTS, BASE_SCRIPT_SLOTS + getLicenseCount("license_slots"));
   const reducedByEcho = hasScript("echo_chamber") ? 2 : 0;
   return Math.max(1, fromLicense - reducedByEcho);
 }
 
 function getCommandSlotCapacity(): number {
-  return BASE_COMMAND_SLOTS + licenseCounts.license_commands;
+  return BASE_COMMAND_SLOTS + getLicenseCount("license_commands");
 }
 
 function getPatchSlotCapacity(): number {
-  return BASE_PATCH_SLOTS + licenseCounts.license_patches;
+  return BASE_PATCH_SLOTS + getLicenseCount("license_patches");
 }
 
 function getUsedPatchSlots(): number {
@@ -871,7 +999,7 @@ function getUsedPatchSlots(): number {
 }
 
 function getBulkDiscount(): number {
-  return licenseCounts.license_bulk;
+  return getLicenseCount("license_bulk");
 }
 
 function getItemCost(baseCost: number): number {
@@ -898,27 +1026,32 @@ function buildOperation(
   operationInSector: 1 | 2 | 3,
   now: number
 ): ActiveOperation {
-  const type = getOperationType(operationInSector);
+  const zenMode = isZenMode();
+  const type = zenMode ? "probe" : getOperationType(operationInSector);
   const config = getSectorConfig(sector);
 
   const baseTarget =
     type === "probe"
-      ? Math.round(config.scoreTarget * 0.75)
+      ? Math.round(config.scoreTarget * 1.75)
       : type === "intrude"
-        ? config.scoreTarget
-        : Math.round(config.scoreTarget * 1.25);
+        ? Math.round(config.scoreTarget * 2.5)
+        : Math.round(config.scoreTarget * 3.6);
 
-  const firewalls = pickFirewallSetForOperation(sector, operationInSector);
+  const firewalls = zenMode ? [] : pickFirewallSetForOperation(sector, operationInSector);
 
-  let targetScore = baseTarget;
-  let durationMs = config.timeLimitSec * 1000;
+  let targetScore = zenMode ? 0 : baseTarget;
+  let durationMs = zenMode
+    ? Number.POSITIVE_INFINITY
+    : isTimeEnabled()
+      ? config.timeLimitSec * 1000
+      : Number.POSITIVE_INFINITY;
   let rewardMultiplier = 1;
 
   if (firewalls.includes("bloat")) {
     targetScore *= 2;
   }
 
-  if (firewalls.includes("throttle")) {
+  if (isTimeEnabled() && firewalls.includes("throttle")) {
     durationMs = Math.max(12_000, Math.round(durationMs / 2));
     rewardMultiplier *= 2;
   }
@@ -927,15 +1060,19 @@ function buildOperation(
     targetScore *= 3;
   }
 
-  if (hasScript("overclock_bin")) {
+  if (isTimeEnabled() && hasScript("overclock_bin")) {
     durationMs = Math.max(8_000, durationMs - 10_000);
   }
 
-  const ampStart = hasScript("fragile_payload") ? 3 + stackOverflowRunAmpBonus : 1 + stackOverflowRunAmpBonus;
+  const ampStart = zenMode
+    ? 1
+    : hasScript("fragile_payload")
+      ? 3 + stackOverflowRunAmpBonus
+      : 1 + stackOverflowRunAmpBonus;
 
   const promptResult = createPromptWords(
     sector,
-    getWordCountForSector(sector),
+    zenMode ? ZEN_PROMPT_WORD_COUNT : getWordCountForSector(sector),
     firewalls,
     promptContentMode
   );
@@ -1027,6 +1164,10 @@ function applyAmpGain(delta: number): void {
 
 function addScoreEvent(out: number, amp: number, gain: number, reason: string): void {
   if (!operation) return;
+  if (!isScoreEnabled()) {
+    operation.lastEvent = null;
+    return;
+  }
 
   const safeGain = Math.max(0, Math.round(gain));
   operation.scoreEarned += safeGain;
@@ -1046,6 +1187,7 @@ function addScoreEvent(out: number, amp: number, gain: number, reason: string): 
 
 function isOperationCleared(): boolean {
   if (!operation) return false;
+  if (!isScoreEnabled()) return false;
   return operation.scoreEarned >= operation.targetScore;
 }
 
@@ -1059,15 +1201,17 @@ function addOperationRewards(): void {
 
   let reward = OPERATION_BASE_REWARD;
 
-  const overTargetRatio = operation.scoreEarned / Math.max(1, operation.targetScore);
-  const overSteps = clamp(Math.floor((overTargetRatio - 1) / 0.25), 0, 4);
-  reward += overSteps;
+  if (isScoreEnabled()) {
+    const overTargetRatio = operation.scoreEarned / Math.max(1, operation.targetScore);
+    const overSteps = clamp(Math.floor((overTargetRatio - 1) / 0.25), 0, 4);
+    reward += overSteps;
+  }
 
   if (operation.backspacesInOperation === 0) {
     reward += 2;
   }
 
-  reward += licenseCounts.license_interest;
+  reward += getLicenseCount("license_interest");
   reward = Math.max(1, Math.round(reward * operation.rewardMultiplier));
 
   credits += reward;
@@ -1115,7 +1259,12 @@ function rollShopOffers(): void {
   };
 }
 
-function openShop(nextSector: number): void {
+function openShop(nextSector: number, now: number): void {
+  if (!isItemsShopEnabled()) {
+    beginOperation(nextSector, 1, now);
+    return;
+  }
+
   phase = "shop";
   pendingAfterShop = { sector: nextSector, operationInSector: 1 };
   shopRerolls = 0;
@@ -1162,7 +1311,7 @@ function advanceAfterOperationClear(now: number): void {
   }
 
   operation = null;
-  openShop(sector + 1);
+  openShop(sector + 1, now);
 }
 
 function failOperation(message: string): void {
@@ -1186,7 +1335,28 @@ function applyPromptCompletion(now: number): void {
     operation.bruteForceApplied = true;
   }
 
-  const completionMultiplier = 1.5 + patchStacks.patch_finish * 0.1;
+  if (!isScoreEnabled()) {
+    if (isZenMode()) {
+      const nextPrompt = createPromptWords(
+        operation.sector,
+        ZEN_PROMPT_WORD_COUNT,
+        operation.firewalls,
+        promptContentMode
+      );
+
+      if (nextPrompt.words.length > 0) {
+        operation.promptKind = nextPrompt.kind;
+        setPromptForCurrentOperation(nextPrompt.words, now);
+        statusText = "Page complete. Next page loaded.";
+        return;
+      }
+    }
+
+    finalizeOperationClear(now);
+    return;
+  }
+
+  const completionMultiplier = 1.5 + getPatchCount("patch_finish") * 0.1;
   const bonusOut = operation.outValue * (completionMultiplier - 1);
   operation.outValue = round2(operation.outValue + bonusOut);
 
@@ -1212,6 +1382,11 @@ function applyWordScoring(word: string, durationSec: number, clean: boolean, wpm
   if (!operation) return;
 
   operation.wordsScored += 1;
+  if (!isScoreEnabled()) {
+    operation.cleanChain = clean ? operation.cleanChain + 1 : 0;
+    operation.lastWordOutGain = 0;
+    return;
+  }
 
   const echoMultiplier = getEchoMultiplier();
   let outGain = 0;
@@ -1231,7 +1406,7 @@ function applyWordScoring(word: string, durationSec: number, clean: boolean, wpm
   }
 
   if (word.length >= 8) {
-    outGain += patchStacks.patch_deep * 3;
+    outGain += getPatchCount("patch_deep") * 3;
   }
 
   if (operation.flushAmpBonusPerWord > 0) {
@@ -1239,7 +1414,7 @@ function applyWordScoring(word: string, durationSec: number, clean: boolean, wpm
   }
 
   if (clean) {
-    outGain += 15 + patchStacks.patch_clean * 5;
+    outGain += 15 + getPatchCount("patch_clean") * 5;
 
     operation.cleanChain += 1;
 
@@ -1248,7 +1423,7 @@ function applyWordScoring(word: string, durationSec: number, clean: boolean, wpm
     }
 
     if (operation.cleanChain > 0 && operation.cleanChain % 3 === 0) {
-      ampGain += 0.2 + patchStacks.patch_burst * 0.1;
+      ampGain += 0.2 + getPatchCount("patch_burst") * 0.1;
     }
   } else {
     operation.cleanChain = 0;
@@ -1349,7 +1524,7 @@ function moveToNextWordBoundary(): void {
 }
 
 function canUseFailsafe(): boolean {
-  return licenseCounts.license_failsafe > 0 && !failsafeSpent;
+  return getLicenseCount("license_failsafe") > 0 && !failsafeSpent;
 }
 
 function applyBackspacePenalty(): void {
@@ -1357,6 +1532,10 @@ function applyBackspacePenalty(): void {
 
   operation.currentWordBackspaced = true;
   operation.backspacesInOperation += 1;
+  if (!isScoreEnabled()) {
+    operation.cleanChain = 0;
+    return;
+  }
 
   if (hasScript("fragile_payload")) {
     operation.ampValue = 1;
@@ -1368,8 +1547,9 @@ function applyBackspacePenalty(): void {
     return;
   }
 
-  if (patchStacks.patch_recover > 0) {
-    const drop = 0.5 * patchStacks.patch_recover;
+  const patchRecover = getPatchCount("patch_recover");
+  if (patchRecover > 0) {
+    const drop = 0.5 * patchRecover;
     operation.ampValue = round2(Math.max(1, operation.ampValue - drop));
   } else {
     operation.ampValue = 1;
@@ -1425,6 +1605,16 @@ export function resetRunState(): void {
 
   popupQueue = [];
   popupCounter = 1;
+  customContentEntryCursor = 0;
+
+  if (isZenMode() && getCustomContentSourceType() === "epub") {
+    const entries = getFilteredCustomContentEntries();
+    if (entries.length > 0) {
+      const bookmarked = getCustomContentBookmarkCursor();
+      customContentEntryCursor =
+        bookmarked === null ? 0 : Math.max(0, Math.min(bookmarked, entries.length - 1));
+    }
+  }
 }
 
 export function tick(now = performance.now()): void {
@@ -1442,6 +1632,10 @@ export function tick(now = performance.now()): void {
       operation.gcSweepTicksApplied = ticks;
       statusText = "RESET_WAVE set AMP back to 1.0.";
     }
+  }
+
+  if (!isTimeEnabled()) {
+    return;
   }
 
   if (getRemainingMs(now) > 0) {
@@ -1472,11 +1666,20 @@ export function typeChar(char: string, now: number, wpm: number): InputResult {
     return { accepted: false, correct: false };
   }
 
+  const failHardcore = (): InputResult => {
+    failOperation("Hardcore mode: wrong key. Run failed.");
+    return { accepted: true, correct: false, message: statusText };
+  };
+
   if (hasFirewall("readonly") && operation.errorText.length > 0) {
     operation.errorText = "";
   }
 
   if (operation.errorText.length > 0) {
+    if (isHardcoreEnabled()) {
+      return failHardcore();
+    }
+
     if (hasFirewall("readonly")) {
       statusText = "Mismatch.";
       return { accepted: false, correct: false, message: statusText };
@@ -1493,6 +1696,10 @@ export function typeChar(char: string, now: number, wpm: number): InputResult {
   }
 
   if (char !== expectedChar) {
+    if (isHardcoreEnabled()) {
+      return failHardcore();
+    }
+
     if (hasFirewall("readonly")) {
       statusText = "Mismatch.";
       return { accepted: false, correct: false, message: statusText };
@@ -1600,6 +1807,10 @@ export function skipCurrentOperation(now = performance.now()): ActionResult {
     return { ok: false, message: "No active stage to skip." };
   }
 
+  if (isZenMode()) {
+    return { ok: false, message: "Skip is unavailable in Zen mode." };
+  }
+
   if (operation.type === "firewall") {
     return { ok: false, message: "Challenge stages cannot be skipped." };
   }
@@ -1630,6 +1841,10 @@ function consumeCommandSlot(index: number): CommandId | null {
 }
 
 export function useCommandSlot(index: number): ActionResult {
+  if (!isItemsShopEnabled()) {
+    return { ok: false, message: "Items and workshop are disabled in the current mode." };
+  }
+
   if (phase !== "operation" || !operation) {
     return { ok: false, message: "Actions can be used only during a stage." };
   }
@@ -1706,6 +1921,10 @@ export function useCommandSlot(index: number): ActionResult {
 }
 
 export function continueFromShop(now = performance.now()): ActionResult {
+  if (!isItemsShopEnabled()) {
+    return { ok: false, message: "Items and workshop are disabled in the current mode." };
+  }
+
   if (phase !== "shop") {
     return { ok: false, message: "Workshop is not open." };
   }
@@ -1720,10 +1939,18 @@ export function continueFromShop(now = performance.now()): ActionResult {
 }
 
 export function getRerollCost(): number {
+  if (!isItemsShopEnabled()) {
+    return 0;
+  }
+
   return getItemCost(5 + shopRerolls);
 }
 
 export function rerollShopOffers(): ActionResult {
+  if (!isItemsShopEnabled()) {
+    return { ok: false, message: "Items and workshop are disabled in the current mode." };
+  }
+
   if (phase !== "shop") {
     return { ok: false, message: "Reroll is available only in workshop." };
   }
@@ -1741,6 +1968,10 @@ export function rerollShopOffers(): ActionResult {
 }
 
 export function purchaseScript(id: ScriptId): ActionResult {
+  if (!isItemsShopEnabled()) {
+    return { ok: false, message: "Items and workshop are disabled in the current mode." };
+  }
+
   if (phase !== "shop") {
     return { ok: false, message: "Boosters can only be purchased in workshop." };
   }
@@ -1799,6 +2030,10 @@ export function sellScript(id: ScriptId): ActionResult {
 }
 
 export function purchaseCommand(id: CommandId): ActionResult {
+  if (!isItemsShopEnabled()) {
+    return { ok: false, message: "Items and workshop are disabled in the current mode." };
+  }
+
   if (phase !== "shop") {
     return { ok: false, message: "Actions can only be purchased in workshop." };
   }
@@ -1821,6 +2056,10 @@ export function purchaseCommand(id: CommandId): ActionResult {
 }
 
 export function purchasePatch(id: PatchId): ActionResult {
+  if (!isItemsShopEnabled()) {
+    return { ok: false, message: "Items and workshop are disabled in the current mode." };
+  }
+
   if (phase !== "shop") {
     return { ok: false, message: "Talents can only be purchased in workshop." };
   }
@@ -1844,6 +2083,10 @@ export function purchasePatch(id: PatchId): ActionResult {
 }
 
 export function purchaseLicense(): ActionResult {
+  if (!isItemsShopEnabled()) {
+    return { ok: false, message: "Items and workshop are disabled in the current mode." };
+  }
+
   if (phase !== "shop") {
     return { ok: false, message: "Upgrade can only be purchased in workshop." };
   }
@@ -1883,6 +2126,16 @@ function finalizeOperationClear(now: number): void {
   if (!operation) return;
 
   operationsCleared += 1;
+
+  if (isZenMode()) {
+    phase = "idle";
+    operation = null;
+    statusText =
+      getCustomContentSourceType() === "epub"
+        ? "Book complete. Start a new run to read again."
+        : "Zen run complete.";
+    return;
+  }
 
   applyClearScripts(now);
   addOperationRewards();
@@ -1928,7 +2181,7 @@ export function setPromptContentMode(mode: PromptContentMode): ActionResult {
   if (phase === "operation" && operation) {
     const promptResult = createPromptWords(
       operation.sector,
-      getWordCountForSector(operation.sector),
+      isZenMode() ? ZEN_PROMPT_WORD_COUNT : getWordCountForSector(operation.sector),
       operation.firewalls,
       promptContentMode
     );
@@ -1982,6 +2235,7 @@ export function getCleanChain(): number {
 
 export function getRemainingMs(now = performance.now()): number {
   if (!operation) return 0;
+  if (!isTimeEnabled()) return Number.POSITIVE_INFINITY;
   const elapsed = now - operation.startedAt;
   return Math.max(0, operation.durationMs - elapsed);
 }
@@ -2032,6 +2286,10 @@ export function getActiveFirewallLabels(): string {
 }
 
 export function getLastEvent(): ScoreEvent | null {
+  if (!isScoreEnabled()) {
+    return null;
+  }
+
   if (operation?.scoreFeedbackHidden && phase === "operation") {
     return null;
   }
@@ -2040,10 +2298,19 @@ export function getLastEvent(): ScoreEvent | null {
 
 export function getScoreProgressRatio(): number {
   if (!operation) return 0;
+  if (!isScoreEnabled()) {
+    if (operation.expectedText.length === 0) return 0;
+    const typed = operation.typedText.length + operation.errorText.length;
+    return clamp(typed / operation.expectedText.length, 0, 1);
+  }
   return clamp(operation.scoreEarned / Math.max(1, operation.targetScore), 0, 1);
 }
 
 export function getScriptLoadout(): ScriptDefinition[] {
+  if (!isItemsShopEnabled()) {
+    return [];
+  }
+
   return scripts.map((id) => SCRIPT_DEFS[id]);
 }
 
@@ -2064,22 +2331,42 @@ export function getLicenseDefinitions(): Readonly<Record<LicenseId, LicenseDefin
 }
 
 export function getPatchStacks(): Readonly<Record<PatchId, number>> {
+  if (!isItemsShopEnabled()) {
+    return EMPTY_PATCH_STACKS;
+  }
+
   return patchStacks;
 }
 
 export function getScriptSlotCapacityValue(): number {
+  if (!isItemsShopEnabled()) {
+    return 0;
+  }
+
   return getScriptSlotCapacity();
 }
 
 export function getCommandSlotCapacityValue(): number {
+  if (!isItemsShopEnabled()) {
+    return 0;
+  }
+
   return getCommandSlotCapacity();
 }
 
 export function getPatchSlotCapacityValue(): number {
+  if (!isItemsShopEnabled()) {
+    return 0;
+  }
+
   return getPatchSlotCapacity();
 }
 
 export function getCommandSlots(): Array<CommandId | null> {
+  if (!isItemsShopEnabled()) {
+    return [];
+  }
+
   const cap = getCommandSlotCapacity();
   const slots: Array<CommandId | null> = [];
 
@@ -2091,18 +2378,31 @@ export function getCommandSlots(): Array<CommandId | null> {
 }
 
 export function getShopOffers(): ShopOffers {
+  if (!isItemsShopEnabled()) {
+    return EMPTY_SHOP_OFFERS;
+  }
+
   return shopOffers;
 }
 
 export function getShopRerolls(): number {
+  if (!isItemsShopEnabled()) {
+    return 0;
+  }
+
   return shopRerolls;
 }
 
 export function getShopLicenseBought(): boolean {
+  if (!isItemsShopEnabled()) {
+    return false;
+  }
+
   return shopLicenseBought;
 }
 
 export function canSkipOperation(): boolean {
+  if (isZenMode()) return false;
   if (!operation) return false;
   return operation.type !== "firewall";
 }
@@ -2110,6 +2410,10 @@ export function canSkipOperation(): boolean {
 export function getOperationLabel(): string {
   if (!operation) {
     return "No active stage";
+  }
+
+  if (isZenMode()) {
+    return "Zen Run";
   }
 
   const name =
@@ -2125,6 +2429,7 @@ export function getOperationLabel(): string {
 }
 
 export function getOperationBriefing(): OperationBriefing | null {
+  if (isZenMode()) return null;
   if (!operation) return null;
 
   const firewalls =
@@ -2139,7 +2444,7 @@ export function getOperationBriefing(): OperationBriefing | null {
   return {
     label: getOperationLabel(),
     targetScore: operation.targetScore,
-    timeLimitSec: Math.max(1, Math.round(operation.durationMs / 1000)),
+    timeLimitSec: isTimeEnabled() ? Math.max(1, Math.round(operation.durationMs / 1000)) : 0,
     canSkip: operation.type !== "firewall",
     firewalls,
   };

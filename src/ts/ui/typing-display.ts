@@ -47,7 +47,7 @@ function renderPromptText(): void {
       html += `${cursorHtml}<span class="${classes.join(" ")}">${visibleChar}</span>`;
     } else if (i < typed.length + errorText.length) {
       const wrongChar = errorText[i - typed.length];
-      const wrongVisible = escapeChar(wrongChar);
+      const wrongVisible = wrongChar === " " ? visibleChar : escapeChar(wrongChar);
       classes.push("promptCharIncorrect");
       html += `${cursorHtml}<span class="${classes.join(" ")}">${wrongVisible}</span>`;
     } else {
