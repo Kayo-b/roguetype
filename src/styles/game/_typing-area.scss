@@ -112,6 +112,44 @@
   padding: 0.2rem 0.1rem;
 }
 
+#timerMeta {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+}
+
+#timerPenaltyEffect {
+  position: absolute;
+  left: calc(100% + 0.6rem);
+  top: 0.18rem;
+  color: #ff4d4d;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+}
+
+#timerPenaltyEffect.isVisible {
+  animation: timerPenaltyPop 520ms ease-out;
+}
+
+@keyframes timerPenaltyPop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
 .playMetaValue {
   color: var(--accent);
   font-size: 2.1rem;

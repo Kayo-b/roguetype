@@ -150,6 +150,7 @@ export interface InputResult {
   perfectWord?: boolean;
   ampLevel?: number;
   cleanChain?: number;
+  timePenaltyMs?: number;
 }
 
 interface ShopOffers {
@@ -211,6 +212,7 @@ interface ActiveOperation {
 const STARTING_CREDITS = 4;
 const OPERATION_BASE_REWARD = 2;
 const ZEN_PROMPT_WORD_COUNT = 8;
+const WRONG_KEY_TIME_PENALTY_MS = 2_000;
 
 const BASE_SCRIPT_SLOTS = 3;
 const MAX_SCRIPT_SLOTS = 3;
@@ -1319,6 +1321,19 @@ function failOperation(message: string): void {
   statusText = message;
 }
 
+function applyWrongKeyTimePenalty(now: number): number {
+  if (!operation) return 0;
+  if (!isTimeEnabled()) return 0;
+
+  operation.startedAt -= WRONG_KEY_TIME_PENALTY_MS;
+
+  if (getRemainingMs(now) <= 0) {
+    failOperation("Stage timeout. Run failed.");
+  }
+
+  return WRONG_KEY_TIME_PENALTY_MS;
+}
+
 function applyPromptCompletion(now: number): void {
   if (!operation) return;
 
@@ -1363,7 +1378,7 @@ function applyPromptCompletion(now: number): void {
   const amp = hasFirewall("null_amp") ? 1 : operation.ampValue;
   addScoreEvent(operation.outValue, amp, bonusOut * amp, "prompt_clear");
 
-  if (isOperationCleared()) {
+  if (!isTimeEnabled() && isOperationCleared()) {
     finalizeOperationClear(now);
     return;
   }
@@ -1681,18 +1696,21 @@ export function typeChar(char: string, now: number, wpm: number): InputResult {
     }
 
     if (hasFirewall("readonly")) {
+      const penaltyMs = applyWrongKeyTimePenalty(now);
       statusText = "Mismatch.";
-      return { accepted: false, correct: false, message: statusText };
+      return { accepted: false, correct: false, message: statusText, timePenaltyMs: penaltyMs };
     }
 
     const remaining = Math.max(0, operation.expectedText.length - operation.typedText.length);
     if (operation.errorText.length >= remaining) {
+      const penaltyMs = applyWrongKeyTimePenalty(now);
       statusText = "Mismatch. Backspace to recover.";
-      return { accepted: false, correct: false, message: statusText };
+      return { accepted: false, correct: false, message: statusText, timePenaltyMs: penaltyMs };
     }
     operation.errorText += char;
+    const penaltyMs = applyWrongKeyTimePenalty(now);
     statusText = "Mismatch. Backspace to recover.";
-    return { accepted: true, correct: false, message: statusText };
+    return { accepted: true, correct: false, message: statusText, timePenaltyMs: penaltyMs };
   }
 
   if (char !== expectedChar) {
@@ -1701,18 +1719,21 @@ export function typeChar(char: string, now: number, wpm: number): InputResult {
     }
 
     if (hasFirewall("readonly")) {
+      const penaltyMs = applyWrongKeyTimePenalty(now);
       statusText = "Mismatch.";
-      return { accepted: false, correct: false, message: statusText };
+      return { accepted: false, correct: false, message: statusText, timePenaltyMs: penaltyMs };
     }
 
     const remaining = Math.max(0, operation.expectedText.length - operation.typedText.length);
     if (operation.errorText.length >= remaining) {
+      const penaltyMs = applyWrongKeyTimePenalty(now);
       statusText = "Mismatch. Backspace to recover.";
-      return { accepted: false, correct: false, message: statusText };
+      return { accepted: false, correct: false, message: statusText, timePenaltyMs: penaltyMs };
     }
     operation.errorText += char;
+    const penaltyMs = applyWrongKeyTimePenalty(now);
     statusText = "Mismatch. Backspace to recover.";
-    return { accepted: true, correct: false, message: statusText };
+    return { accepted: true, correct: false, message: statusText, timePenaltyMs: penaltyMs };
   }
 
   prepareNewWordIfNeeded(char, now);
@@ -2144,6 +2165,7 @@ function finalizeOperationClear(now: number): void {
 
 export function tryFinalizeIfTargetMet(now = performance.now()): void {
   if (phase !== "operation" || !operation) return;
+  if (isTimeEnabled()) return;
   if (!isOperationCleared()) return;
   finalizeOperationClear(now);
 }

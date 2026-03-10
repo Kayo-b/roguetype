@@ -54,6 +54,7 @@ let storeRerollButtonElement: HTMLButtonElement | null = null;
 
 let timerFillElement: HTMLElement | null = null;
 let timerTextElement: HTMLElement | null = null;
+let timerPenaltyEffectElement: HTMLElement | null = null;
 
 let briefingOverlayElement: HTMLElement | null = null;
 let briefingSubtitleElement: HTMLElement | null = null;
@@ -529,6 +530,11 @@ function processTypedChar(char: string): void {
   const now = performance.now();
   const result = RogueState.typeChar(char, now, Stats.getWPM());
 
+  const timePenaltyMs = result.timePenaltyMs ?? 0;
+  if (timePenaltyMs > 0) {
+    showTimerPenaltyEffect(timePenaltyMs);
+  }
+
   if (result.accepted && char !== " ") {
     playLetterThock();
   }
@@ -546,6 +552,16 @@ function processTypedChar(char: string): void {
   }
 
   RogueState.tryFinalizeIfTargetMet(now);
+}
+
+function showTimerPenaltyEffect(penaltyMs: number): void {
+  if (!timerPenaltyEffectElement) return;
+  if (penaltyMs <= 0) return;
+
+  timerPenaltyEffectElement.textContent = `-${Math.round(penaltyMs / 1000)}`;
+  timerPenaltyEffectElement.classList.remove("isVisible");
+  void timerPenaltyEffectElement.offsetWidth;
+  timerPenaltyEffectElement.classList.add("isVisible");
 }
 
 function processBackspace(): void {
@@ -1334,6 +1350,7 @@ export function initInputHandler(): void {
   popupLayerElement = document.getElementById("scorePopupLayer");
   timerFillElement = document.getElementById("timerFill");
   timerTextElement = document.getElementById("timerText");
+  timerPenaltyEffectElement = document.getElementById("timerPenaltyEffect");
 
   if (!commandOutputElement || !commandLiveElement || !popupLayerElement) {
     throw new Error("Input handler elements not found");
