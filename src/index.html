@@ -3,225 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RogueType Reader</title>
+    <title>RogueType</title>
   </head>
   <body>
     <div id="app">
-      <div id="layoutShell">
-        <header id="topBar">
-          <div id="topLeft">
-            <div id="appTitle">RogueType</div>
-            <div id="topControls">
-              <button id="startRunBtn" type="button">Start Run</button>
-              <button id="resetRunBtn" type="button">Reset</button>
-              <button id="skipOperationBtn" type="button">Skip</button>
-              <label for="gameModeSelect" class="controlLabel">Mode</label>
-              <select id="gameModeSelect">
-                <option value="game">Game</option>
-                <option value="zen">Zen</option>
-              </select>
-              <label class="controlToggleLabel" for="hardcoreToggle">
-                <input id="hardcoreToggle" type="checkbox" />
-                Hardcore
-              </label>
-              <label class="controlToggleLabel" for="soundToggle">
-                <input id="soundToggle" type="checkbox" checked />
-                Sound
-              </label>
-              <label for="contentModeSelect" class="controlLabel">Text</label>
-              <select id="contentModeSelect">
-                <option value="quotes">Quotes</option>
-                <option value="books">Book Passages</option>
-                <option value="letters">Random Letters</option>
-              </select>
-            </div>
-            <div id="customSettingsPanel" class="isHidden">
-              <label class="controlLabel" for="customContentInput">Custom Text / EPUB</label>
-              <input
-                id="customContentInput"
-                type="file"
-                accept=".csv,text/csv,.txt,text/plain,.epub,application/epub+zip"
-              />
-              <button id="customContentClearBtn" type="button">Clear</button>
-              <div id="customChapterRange" class="isHidden">
-                <label class="controlLabel" for="customChapterStartSelect">From</label>
-                <select id="customChapterStartSelect"></select>
-                <label class="controlLabel" for="customChapterEndSelect">To</label>
-                <select id="customChapterEndSelect"></select>
-              </div>
-              <div id="customContentStatus" class="customStatus">No custom text loaded.</div>
+      <main id="typingApp" tabindex="0">
+        <section class="heroPanel">
+          <p class="eyebrow">Clean branch · typing only</p>
+          <h1>RogueType</h1>
+          <p class="subtitle">The roguelike shell is stripped away here: no menus, no score economy, no items, no countdowns.</p>
+        </section>
+
+        <section class="typingPanel" aria-label="Typing practice">
+          <div class="toolbarRow">
+            <div id="statusText" class="statusText">Type anywhere to begin. Press Esc for a new passage.</div>
+            <div class="toolbarActions">
+              <button id="newPassageBtn" type="button">New passage</button>
+              <button id="resetSessionBtn" type="button">Reset session</button>
             </div>
           </div>
 
-          <div id="hudStrip">
-            <span id="runMetric" class="metricInline"><span class="metricLabel">Run</span><span id="runScoreValue" class="metricValue scoreValue">0</span></span>
-            <span id="bestMetric" class="metricInline"><span class="metricLabel">Best</span><span id="bestScoreValue" class="metricValue scoreValue">0</span></span>
-            <span id="outMetric" class="metricInline"><span class="metricLabel">OUT</span><span id="outValue" class="metricValue">0</span></span>
-            <span id="ampMetric" class="metricInline"><span class="metricLabel">AMP</span><span id="ampValue" class="metricValue">1.00x</span></span>
-            <span id="streakMetric" class="metricInline"><span class="metricLabel">Streak</span><span id="streakValue" class="metricValue">0</span></span>
-            <span id="wpmMetric" class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
-            <span id="bestWpmMetric" class="metricInline"><span class="metricLabel">Best WPM</span><span id="bestWpmValue" class="metricValue">0</span></span>
-            <span id="avgWpmMetric" class="metricInline"><span class="metricLabel">Avg WPM</span><span id="avgWpmValue" class="metricValue">0</span></span>
-          </div>
-        </header>
+          <div id="promptContent" class="promptContent" aria-live="polite"></div>
 
-        <main id="centerColumn">
-          <section id="typingTerminal">
-            <div id="playMeta">
-              <div id="timerMeta">
-                <div id="timerText" class="playMetaValue">-</div>
-                <div id="timerPenaltyEffect" aria-hidden="true">-2</div>
-              </div>
-              <div id="targetValue" class="playMetaValue">0</div>
-            </div>
+          <div class="hintRow">Backspace edits · Enter inserts a space · Esc jumps to another passage</div>
 
-            <section id="promptBlock">
-              <div id="promptContent"></div>
-              <div id="scorePopupLayer" aria-live="polite"></div>
-
-              <div id="floatingScripts" class="floatingLoadout">
-                <div id="scriptSlotsTitle" class="visuallyHidden">Boosters 0/3</div>
-                <div id="scriptSlots" class="loadoutSquares"></div>
-              </div>
-
-              <div id="floatingUtility" class="floatingLoadout">
-                <div id="commandSlotsTitle" class="visuallyHidden">Actions 0/2</div>
-                <div id="commandSlots" class="loadoutSquares"></div>
-                <div id="patchSlotsTitle" class="visuallyHidden">Talents 0/2</div>
-                <div id="patchSlots" class="loadoutSquares"></div>
-              </div>
-            </section>
-
-            <section id="commandDock">
-              <pre id="commandLive" class="commandBlock">$ [typing] Type passage text · Press ` for commands</pre>
-              <pre id="commandOutput" class="commandBlock">$ ready
-Use `--start to begin a run.</pre>
-            </section>
-
-            <div id="stateReadout" class="visuallyHidden">
-              <span id="promptTitle">Stage 1 · Warmup</span>
-              <span id="promptFirewall">No active challenge</span>
-              <span id="phaseValue">Idle</span>
-              <span id="sectorValue">1 · warmup</span>
-              <span id="creditsValue">4c</span>
-              <span id="statusLine">Type `--start to begin.</span>
-              <span id="lastEventLine">-</span>
-            </div>
-
-            <div class="visuallyHidden" aria-hidden="true">
-              <div class="progressTrack"><div id="targetFill" class="progressFill"></div></div>
-              <div id="timerBar"><div id="timerFill"></div></div>
-            </div>
+          <section class="metricsGrid" aria-label="Typing stats">
+            <article class="metricCard">
+              <span class="metricLabel">Progress</span>
+              <strong id="progressValue" class="metricValue">0%</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">Completed</span>
+              <strong id="completedValue" class="metricValue">0</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">Accuracy</span>
+              <strong id="accuracyValue" class="metricValue">100%</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">WPM</span>
+              <strong id="wpmValue" class="metricValue">0</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">Raw WPM</span>
+              <strong id="rawWpmValue" class="metricValue">0</strong>
+            </article>
           </section>
-        </main>
-      </div>
-
-      <div id="briefingOverlay" aria-hidden="true">
-        <section id="briefingModal">
-          <header id="briefingHeader">
-            <div>
-              <h2 id="briefingTitle">Stage Briefing</h2>
-              <div id="briefingSubtitle">Stage 1 · Warmup</div>
-            </div>
-            <button id="briefingCloseBtn" type="button">Begin</button>
-          </header>
-
-          <div id="briefingMetaGrid">
-            <div class="briefingMetaCard">
-              <div class="briefingMetaLabel">Target</div>
-              <div id="briefingTarget" class="briefingMetaValue">0</div>
-            </div>
-            <div class="briefingMetaCard">
-              <div class="briefingMetaLabel">Time</div>
-              <div id="briefingTime" class="briefingMetaValue">0s</div>
-            </div>
-            <div class="briefingMetaCard">
-              <div class="briefingMetaLabel">Skip</div>
-              <div id="briefingSkip" class="briefingMetaValue">No</div>
-            </div>
-          </div>
-
-          <div class="briefingBlockTitle">Challenge</div>
-          <div id="briefingDebuffs" class="briefingList"></div>
-
-          <div class="briefingBlockTitle">Current Items</div>
-          <div id="briefingLoadout" class="briefingLoadoutGrid"></div>
-
-          <div class="briefingBlockTitle">Auto Activate Actions</div>
-          <div id="briefingAutoActions" class="briefingAutoList"></div>
         </section>
-      </div>
-
-      <div id="storeOverlay" aria-hidden="true">
-        <section id="storeModal">
-          <header id="storeHeader">
-            <div>
-              <h2 id="storeTitle">Workshop</h2>
-              <div id="storeCreditsLine">Credits: <span id="storeCreditsValue">0c</span></div>
-            </div>
-            <div id="storeActions">
-              <button id="storeRerollBtn" type="button">REROLL 5c</button>
-              <button id="storeCloseBtn" type="button">Start Next Stage</button>
-            </div>
-          </header>
-
-          <div class="storeGrid">
-            <section class="storeColumn">
-              <h3 class="storeSectionTitle">Boosters</h3>
-              <div id="storeScripts" class="storeList"></div>
-            </section>
-
-            <section class="storeColumn">
-              <h3 class="storeSectionTitle">Actions</h3>
-              <div id="storeCommands" class="storeList"></div>
-            </section>
-
-            <section class="storeColumn">
-              <h3 class="storeSectionTitle">Talents</h3>
-              <div id="storePatches" class="storeList"></div>
-            </section>
-
-            <section class="storeColumn">
-              <h3 class="storeSectionTitle">Upgrade (1/stage)</h3>
-              <div id="storeLicense" class="storeList"></div>
-            </section>
-          </div>
-
-          <div id="storeStatus" class="subtleMessage">Workshop open.</div>
-        </section>
-      </div>
-
-      <div id="runSummaryOverlay" aria-hidden="true">
-        <section id="runSummaryModal">
-          <h2 id="runSummaryTitle">Run Summary</h2>
-          <div id="runSummaryGrid">
-            <div id="summaryScoreStat" class="summaryStat">
-              <div class="summaryLabel">Score</div>
-              <div id="summaryScore" class="summaryValue">0</div>
-            </div>
-            <div class="summaryStat">
-              <div class="summaryLabel">WPM</div>
-              <div id="summaryWpm" class="summaryValue">0</div>
-            </div>
-            <div class="summaryStat">
-              <div class="summaryLabel">Accuracy</div>
-              <div id="summaryAccuracy" class="summaryValue">0%</div>
-            </div>
-            <div class="summaryStat">
-              <div class="summaryLabel">Time</div>
-              <div id="summaryTime" class="summaryValue">0.0s</div>
-            </div>
-            <div class="summaryStat">
-              <div class="summaryLabel">Errors</div>
-              <div id="summaryErrors" class="summaryValue">0</div>
-            </div>
-          </div>
-          <div id="runSummaryActions">
-            <button id="summaryRestartBtn" type="button">Run Again</button>
-            <button id="summaryCloseBtn" type="button">Close</button>
-          </div>
-        </section>
-      </div>
+      </main>
     </div>
 
     <script type="module" src="./index.ts"></script>
