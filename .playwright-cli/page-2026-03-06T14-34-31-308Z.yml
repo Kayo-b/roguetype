@@ -1,0 +1,71 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: RogueType
+      - generic [ref=e7]:
+        - button "Start Run" [ref=e8] [cursor=pointer]
+        - button "Reset" [ref=e9] [cursor=pointer]
+        - button "Skip" [ref=e67] [cursor=pointer]
+        - generic [ref=e10]: Text
+        - combobox "Text" [ref=e11]:
+          - option "Quotes" [selected]
+          - option "Book Passages"
+          - option "Random Letters"
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: Run
+        - generic [ref=e15]: "0"
+      - generic [ref=e16]:
+        - generic [ref=e17]: Best
+        - generic [ref=e18]: "0"
+      - generic [ref=e19]:
+        - generic [ref=e20]: OUT
+        - generic [ref=e21]: "0"
+      - generic [ref=e22]:
+        - generic [ref=e23]: AMP
+        - generic [ref=e24]: 1.00x
+      - generic [ref=e25]:
+        - generic [ref=e26]: Streak
+        - generic [ref=e27]: "0"
+      - generic [ref=e28]:
+        - generic [ref=e29]: WPM
+        - generic [ref=e30]: "0"
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]: "59"
+        - generic "Target 375" [ref=e68]: "0"
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e194]: Keep
+          - generic [ref=e196]: your
+          - generic [ref=e197]: pace
+          - generic [ref=e198]: kind
+          - generic [ref=e199]: and
+          - generic [ref=e200]: your
+          - generic [ref=e201]: focus
+          - generic [ref=e202]: honest,
+          - generic [ref=e203]: and
+          - generic [ref=e204]: progress
+          - generic [ref=e205]: will
+          - generic [ref=e206]: appear.
+          - generic [ref=e207]: Progress
+          - generic [ref=e208]: hides
+          - generic [ref=e209]: in
+          - generic [ref=e210]: ordinary
+          - generic [ref=e211]: moments
+          - generic [ref=e212]: that
+          - generic [ref=e213]: are
+          - generic [ref=e214]: repeated
+          - generic [ref=e215]: with
+          - generic [ref=e216]: care.
+          - generic [ref=e217]: A
+          - generic [ref=e218]: calm
+        - generic [ref=e40]: Boosters 0/3
+        - generic [ref=e45]:
+          - generic [ref=e46]: Actions 0/2
+          - generic [ref=e50]: Talents 0/2
+      - generic [ref=e54]:
+        - generic [ref=e55]: "$ [typing] Type passage text · Press ` for commands · Ctrl+1..9 use action slots"
+        - generic [ref=e56]: "$ ready Use `--start to begin a run."
+      - generic [ref=e57]: Stage 1 · Warmup No active challenge Stage 1 · warmup 4c Stage 1 Warmup started. -

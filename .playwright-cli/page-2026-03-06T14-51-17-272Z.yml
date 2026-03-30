@@ -1,0 +1,49 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: RogueType
+      - generic [ref=e7]:
+        - button "Start Run" [ref=e8] [cursor=pointer]
+        - button "Reset" [ref=e9] [cursor=pointer]
+        - button "Skip" [ref=e67] [cursor=pointer]
+        - generic [ref=e10]: Text
+        - combobox "Text" [ref=e11]:
+          - option "Quotes" [selected]
+          - option "Book Passages"
+          - option "Random Letters"
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: Run
+        - generic [ref=e15]: "45"
+      - generic [ref=e16]:
+        - generic [ref=e17]: Best
+        - generic [ref=e18]: "45"
+      - generic [ref=e19]:
+        - generic [ref=e20]: OUT
+        - generic [ref=e21]: "45"
+      - generic [ref=e22]:
+        - generic [ref=e23]: AMP
+        - generic [ref=e24]: 1.00x
+      - generic [ref=e25]:
+        - generic [ref=e26]: Streak
+        - generic [ref=e27]: "1"
+      - generic [ref=e28]:
+        - generic [ref=e29]: WPM
+        - generic [ref=e30]: "10"
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]: "47"
+        - generic "Target 375" [ref=e68]: "45"
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - text: Confidence
+          - text: is often built from many quiet sessions that nobody sees. Calm attention turns long passages into manageable pieces. Make room for mistakes, then
+        - generic [ref=e40]: Boosters 0/3
+        - generic [ref=e45]:
+          - generic [ref=e46]: Actions 0/2
+          - generic [ref=e50]: Talents 0/2
+      - generic [ref=e54]:
+        - generic [ref=e55]: "$ [typing] Type passage text · Press ` for commands · Ctrl+1..9 use action slots"
+        - generic [ref=e56]: "$ ready Use `--start to begin a run."
+      - generic [ref=e57]: Stage 1 · Warmup No active challenge Stage 1 · warmup 4c Delimiter accepted. +45 OUT × 1.00 AMP = 45

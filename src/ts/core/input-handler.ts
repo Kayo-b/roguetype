@@ -1,727 +1,116 @@
 import * as Stats from "./stats";
-import { wordManager } from "./word-manager";
-import {
-  getNextQuizQuestion,
-  refreshQuizContentFromStorage,
-  validateQuizAnswer,
-} from "./quiz-manager";
-import * as GameState from "../game/game-state";
 import * as RogueState from "../game/roguelike-state";
-import * as ScoreCalculator from "../scoring/score-calculator";
 import { updateDisplay } from "../ui/typing-display";
-import { updateScoreDisplay } from "../ui/score-display";
+import { recordCompletedRunStats, updateScoreDisplay } from "../ui/score-display";
+import { getCommandIcon, getPatchIcon, getScriptIcon } from "../ui/item-icons";
+import { playLetterThock, playPerfectWordAccent, primeGameAudio } from "../audio/game-sfx";
 import {
-  createCustomContentTemplate,
-  loadRegularDifficulty,
-  loadSelectedQuizDifficultyFilter,
-  loadSelectedQuizThemes,
-  saveCustomContentPackage,
-  saveRegularDifficulty,
-  saveSelectedQuizDifficultyFilter,
-  saveSelectedQuizThemes,
-  validateCustomContentPackage,
-} from "../utils/storage";
+  clearCustomContentEntries,
+  getCustomContentChapterRange,
+  getCustomContentChapters,
+  getCustomContentSourceName,
+  getCustomContentSourceType,
+  getCustomContentTruncatedAfterChapterTitle,
+  getEffectiveGameRules,
+  getGameSettings,
+  parseCustomContentCsv,
+  setCustomChapterRange,
+  setCustomContentEntries,
+  setGameMode,
+  setHardcoreEnabled,
+  setSoundEffectsEnabled,
+} from "../game/game-settings";
+import { importEpubCustomContent } from "../game/epub-import";
 
-const REGULAR_WORDS_PER_SET = 10;
-const QUIZ_AUTO_NEXT_MS = 900;
-const THEME_STORAGE_KEY = "roguetype:theme";
-const COMMAND_HELP_TEXT =
-  "Commands use ! prefix: !--help !--rogue !--training !--mode regular|quiz !--validation strict|loose !--difficulty easy|medium|hard !--quiz-difficulty all|easy|medium|hard !--theme add|remove|set|reset|list !--next !--tip !--submit !--reset !--start !--theme-mode dark|bright !--template !--import";
+const COMMAND_HELP =
+  "Commands: `--start `--reset `--skip `--shop `--continue `--use <slot> `--mode <quotes|books|letters> `--help";
 
-let inputElement: HTMLInputElement | null = null;
-let commandInputElement: HTMLInputElement | null = null;
 let commandOutputElement: HTMLElement | null = null;
-let customPackageInputElement: HTMLInputElement | null = null;
-let terminalElement: HTMLElement | null = null;
-let quizAutoNextTimeout: number | null = null;
-let activeTheme: "dark" | "bright" = "dark";
+let commandLiveElement: HTMLElement | null = null;
+let contentModeSelectElement: HTMLSelectElement | null = null;
+let gameModeSelectElement: HTMLSelectElement | null = null;
+let hardcoreToggleElement: HTMLInputElement | null = null;
+let soundToggleElement: HTMLInputElement | null = null;
+let customPanelElement: HTMLElement | null = null;
+let customContentInputElement: HTMLInputElement | null = null;
+let customChapterRangeElement: HTMLElement | null = null;
+let customChapterStartSelectElement: HTMLSelectElement | null = null;
+let customChapterEndSelectElement: HTMLSelectElement | null = null;
+let customContentStatusElement: HTMLElement | null = null;
+let customContentClearButtonElement: HTMLButtonElement | null = null;
+let popupLayerElement: HTMLElement | null = null;
+let floatingScriptsElement: HTMLElement | null = null;
+let floatingUtilityElement: HTMLElement | null = null;
 
 let storeOverlayElement: HTMLElement | null = null;
-let storeItemsListElement: HTMLElement | null = null;
-let storeModulesListElement: HTMLElement | null = null;
-let storeCloseButtonElement: HTMLButtonElement | null = null;
-let storeCoinsValueElement: HTMLElement | null = null;
+let storeScriptsElement: HTMLElement | null = null;
+let storeCommandsElement: HTMLElement | null = null;
+let storePatchesElement: HTMLElement | null = null;
+let storeLicenseElement: HTMLElement | null = null;
+let storeCreditsElement: HTMLElement | null = null;
 let storeStatusElement: HTMLElement | null = null;
+let storeCloseButtonElement: HTMLButtonElement | null = null;
+let storeRerollButtonElement: HTMLButtonElement | null = null;
 
-function renderAll(): void {
-  updateDisplay();
-  updateScoreDisplay();
+let timerFillElement: HTMLElement | null = null;
+let timerTextElement: HTMLElement | null = null;
+let timerPenaltyEffectElement: HTMLElement | null = null;
+
+let briefingOverlayElement: HTMLElement | null = null;
+let briefingSubtitleElement: HTMLElement | null = null;
+let briefingTargetElement: HTMLElement | null = null;
+let briefingTimeElement: HTMLElement | null = null;
+let briefingSkipElement: HTMLElement | null = null;
+let briefingDebuffsElement: HTMLElement | null = null;
+let briefingLoadoutElement: HTMLElement | null = null;
+let briefingAutoActionsElement: HTMLElement | null = null;
+let briefingCloseButtonElement: HTMLButtonElement | null = null;
+
+let runSummaryOverlayElement: HTMLElement | null = null;
+let summaryScoreStatElement: HTMLElement | null = null;
+let summaryScoreElement: HTMLElement | null = null;
+let summaryWpmElement: HTMLElement | null = null;
+let summaryAccuracyElement: HTMLElement | null = null;
+let summaryTimeElement: HTMLElement | null = null;
+let summaryErrorsElement: HTMLElement | null = null;
+let summaryRestartButtonElement: HTMLButtonElement | null = null;
+let summaryCloseButtonElement: HTMLButtonElement | null = null;
+
+let briefingOpen = false;
+let briefingOpenedAt = 0;
+let lastBriefedOperationKey = "";
+let briefingRemainingMsSnapshot = 0;
+let lastRenderedPhase: RogueState.RoguePhase | null = null;
+let lastRenderedOperationKey = "";
+let queuedAutoUseSlots: number[] = [];
+let summaryOpen = false;
+let summaryDismissedForEndState = false;
+
+let commandMode = false;
+let commandBuffer = "";
+let completionStatsRecorded = false;
+let lastCustomChapterOptionsSignature = "";
+let lastCustomChapterRangeVisible: boolean | null = null;
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
-function setInlineFocusTarget(target: "typing" | "command"): void {
-  commandInputElement?.classList.toggle("isInlineTarget", target === "command");
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+
+  if (target.isContentEditable) return true;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON";
 }
 
-function isCommandModeValue(value: string): boolean {
-  return value.startsWith("!");
-}
-
-function syncInlineInputModeFromValue(value: string): void {
-  const commandMode = isCommandModeValue(value);
-  setInlineFocusTarget(commandMode ? "command" : "typing");
-  terminalElement?.classList.toggle("isCommandMode", commandMode);
-}
-
-function focusInputSoon(): void {
-  if (!commandInputElement) return;
-  window.setTimeout(() => {
-    commandInputElement?.focus();
-    syncInlineInputModeFromValue(commandInputElement?.value ?? "");
-  }, 0);
-}
-
-function clearPendingQuizAutoNext(): void {
-  if (quizAutoNextTimeout !== null) {
-    window.clearTimeout(quizAutoNextTimeout);
-    quizAutoNextTimeout = null;
-  }
-}
-
-function isRogueTab(): boolean {
-  return GameState.getMainTab() === "rogue";
-}
-
-function getWordSeparator(): " " | "_" {
-  return isRogueTab() ? "_" : " ";
-}
-
-function canTypeIntoPrompt(): boolean {
-  if (!isRogueTab()) return true;
-  return RogueState.isLevelActive();
-}
-
-function isStoreModalOpen(): boolean {
-  return storeOverlayElement?.classList.contains("isOpen") ?? false;
-}
-
-function setStoreModalOpen(open: boolean): void {
-  if (!storeOverlayElement) return;
-
-  storeOverlayElement.classList.toggle("isOpen", open);
-  storeOverlayElement.setAttribute("aria-hidden", open ? "false" : "true");
-}
-
-function syncStoreCoinsInline(): void {
-  if (storeCoinsValueElement) {
-    storeCoinsValueElement.textContent = String(RogueState.getCoins());
-  }
-}
-
-function syncStoreStatusInline(message: string): void {
-  if (storeStatusElement) {
-    storeStatusElement.textContent = message;
-  }
-}
-
-function refreshStoreModal(): void {
-  if (!storeItemsListElement || !storeModulesListElement || !storeCloseButtonElement) {
-    return;
-  }
-
-  syncStoreCoinsInline();
-
-  const phase = RogueState.getPhase();
-  const consumableSlots = RogueState.getConsumableSlots();
-  const moduleSlots = RogueState.getModuleSlots();
-  const hasFreeConsumableSlot = consumableSlots.some((entry) => entry === null);
-  const hasFreeModuleSlot = moduleSlots.some((entry) => entry === null);
-  const ownedModules = new Set(moduleSlots.filter((entry): entry is RogueState.RogueModuleId => entry !== null));
-
-  const itemCards = RogueState.getStoreConsumableOffers().map((offer) => {
-    const canBuy =
-      phase === "store" &&
-      hasFreeConsumableSlot &&
-      RogueState.getCoins() >= offer.cost;
-
-    return `<article class="storeCard" box-="square">
-      <div class="storeCardTop">
-        <div>
-          <div class="storeCardTitle">${offer.name}</div>
-          <div class="storeCardDesc">${offer.description}</div>
-        </div>
-        <div class="storeCardCost">${offer.cost}c</div>
-      </div>
-      <button class="storeBuyBtn" type="button" box-="square" data-buy-consumable="${offer.id}" ${canBuy ? "" : "disabled"}>Buy</button>
-    </article>`;
-  });
-
-  const moduleCards = RogueState.getStoreModuleOffers().map((offer) => {
-    const alreadyOwned = ownedModules.has(offer.id);
-    const canBuy =
-      phase === "store" &&
-      hasFreeModuleSlot &&
-      !alreadyOwned &&
-      RogueState.getCoins() >= offer.cost;
-
-    const buttonLabel = alreadyOwned ? "Equipped" : "Equip";
-
-    return `<article class="storeCard" box-="square">
-      <div class="storeCardTop">
-        <div>
-          <div class="storeCardTitle">${offer.name}</div>
-          <div class="storeCardDesc">${offer.description}</div>
-        </div>
-        <div class="storeCardCost">${offer.cost}c</div>
-      </div>
-      <button class="storeBuyBtn" type="button" box-="square" data-buy-module="${offer.id}" ${canBuy ? "" : "disabled"}>${buttonLabel}</button>
-    </article>`;
-  });
-
-  storeItemsListElement.innerHTML = itemCards.join("");
-  storeModulesListElement.innerHTML = moduleCards.join("");
-
-  if (phase === "store") {
-    storeCloseButtonElement.textContent = "Start Next Level";
-  } else if (phase === "victory") {
-    storeCloseButtonElement.textContent = "Close";
-  } else {
-    storeCloseButtonElement.textContent = "Close";
-  }
-
-  syncStoreStatusInline(RogueState.getStatusText());
-}
-
-function openStoreModal(): void {
-  refreshStoreModal();
-  setStoreModalOpen(true);
-}
-
-function closeStoreModal(): void {
-  setStoreModalOpen(false);
-}
-
-function applyTheme(theme: "dark" | "bright"): void {
-  activeTheme = theme;
-
-  const root = document.documentElement;
-  root.setAttribute("data-theme", theme);
-  root.setAttribute("data-webtui-theme", theme === "bright" ? "light" : "dark");
-
-  const toggleButton = document.getElementById("themeToggleBtn");
-  if (toggleButton) {
-    toggleButton.textContent = theme === "bright" ? "Dark Mode" : "Bright Mode";
-  }
-
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {
-    // Ignore storage failures in restricted environments.
-  }
-}
-
-function restoreTheme(): void {
-  let storedTheme: "dark" | "bright" = "dark";
-
-  try {
-    const value = localStorage.getItem(THEME_STORAGE_KEY);
-    if (value === "bright" || value === "dark") {
-      storedTheme = value;
-    }
-  } catch {
-    // Ignore storage failures in restricted environments.
-  }
-
-  applyTheme(storedTheme);
-}
-
-function restoreQuizThemes(): void {
-  const selected = loadSelectedQuizThemes();
-  GameState.setSelectedQuizThemes(selected);
-}
-
-function restoreDifficultyPreferences(): void {
-  GameState.setRegularDifficulty(loadRegularDifficulty());
-  GameState.setQuizDifficultyFilter(loadSelectedQuizDifficultyFilter());
-}
-
-function syncRogueScoringBonuses(): void {
-  if (!isRogueTab()) {
-    ScoreCalculator.setFlatGainBonus(0);
-    ScoreCalculator.setGlobalGainMultiplier(1);
-    return;
-  }
-
-  const now = performance.now();
-  ScoreCalculator.setFlatGainBonus(RogueState.getFlatGainBonus(now));
-  ScoreCalculator.setGlobalGainMultiplier(RogueState.getGainMultiplier(now));
-}
-
-function syncSpeedMultiplier(): void {
-  syncRogueScoringBonuses();
-
-  const speed = ScoreCalculator.calculateSpeedMultiplier(Stats.getWPM());
-  const rogueSpeedMultiplier = isRogueTab()
-    ? RogueState.getSpeedMultiplier(performance.now())
-    : 1;
-
-  ScoreCalculator.setSpeedMultiplier(speed * rogueSpeedMultiplier);
-  ScoreCalculator.setFlawlessMultiplier(GameState.getFlawlessMultiplier());
-}
-
-function syncStrictLockFromCurrentInput(): void {
-  if (GameState.getMode() !== "regular") return;
-
-  const separator = getWordSeparator();
-  const current = GameState.getTypedText();
-  const lastSeparatorIndex = current.lastIndexOf(separator);
-  GameState.setStrictLockIndex(lastSeparatorIndex >= 0 ? lastSeparatorIndex + 1 : 0);
-}
-
-function getRegularWordsPerSet(): number {
-  if (!isRogueTab()) {
-    return wordManager.getRecommendedWordsPerSet(REGULAR_WORDS_PER_SET);
-  }
-
-  const level = RogueState.getCurrentLevel();
-  return Math.min(16, 9 + Math.floor((level - 1) / 2));
-}
-
-function createRegularPromptForCurrentTab(): string {
-  const wordsPerSet = getRegularWordsPerSet();
-
-  if (isRogueTab()) {
-    const basePrompt = wordManager.createRoguePrompt(
-      RogueState.getCurrentLevel(),
-      wordsPerSet
-    );
-    return RogueState.transformPromptForRogue(basePrompt);
-  }
-
-  const basePrompt = wordManager.createRegularPrompt(
-    wordsPerSet,
-    GameState.getRegularDifficulty(),
-    GameState.getSelectedQuizThemes()
-  );
-
-  return basePrompt;
-}
-
-function loadRegularPrompt(): void {
-  clearPendingQuizAutoNext();
-
-  GameState.setMode("regular");
-  GameState.setCurrentQuizQuestion(null);
-
-  const wordsPerSet = getRegularWordsPerSet();
-  GameState.setWordsPerSet(wordsPerSet);
-
-  const prompt = createRegularPromptForCurrentTab();
-  GameState.setPromptAndExpected(prompt, prompt);
-  GameState.resetSetMistakes();
-  GameState.resetStrictLockIndex();
-  GameState.setQuizFeedback("");
-  GameState.setRevealedAnswer("");
-}
-
-function loadQuizQuestion(): void {
-  if (isRogueTab()) return;
-
-  clearPendingQuizAutoNext();
-
-  GameState.setMode("quiz");
-  let question: GameState.QuizQuestion;
-
-  try {
-    question = getNextQuizQuestion(
-      GameState.getSelectedQuizThemes(),
-      GameState.getQuizDifficultyFilter()
-    );
-  } catch {
-    GameState.setCurrentQuizQuestion(null);
-    GameState.setPromptAndExpected(
-      "No quiz questions match the current theme and difficulty filters.",
-      ""
-    );
-    GameState.setQuizFeedback("No matching quiz questions");
-    GameState.setRevealedAnswer("");
-    return;
-  }
-
-  GameState.setCurrentQuizQuestion(question);
-  GameState.setPromptAndExpected(question.prompt, question.answer);
-  GameState.setQuizFeedback("");
-  GameState.setRevealedAnswer("");
-}
-
-function startTimerIfNeeded(): void {
-  if (!canTypeIntoPrompt()) return;
-
-  if (!GameState.getIsActive()) {
-    GameState.setIsActive(true);
-    Stats.startTimer();
-  }
-}
-
-function evaluateRogueProgress(): void {
-  if (!isRogueTab()) return;
-  if (!RogueState.isLevelActive()) return;
-
-  const totalScore = ScoreCalculator.getTotalScore();
-
-  if (!RogueState.isLevelGoalMet(totalScore)) {
-    return;
-  }
-
-  RogueState.completeLevel(totalScore);
-  GameState.setQuizFeedback(RogueState.getStatusText());
-
-  if (RogueState.isStoreOpen()) {
-    openStoreModal();
-  }
-
-  if (RogueState.getPhase() === "victory") {
-    openStoreModal();
-  }
-}
-
-function handleTypedCharacter(char: string): void {
-  if (char.length === 0 || !canTypeIntoPrompt()) return;
-
-  startTimerIfNeeded();
-
-  const expected = GameState.getExpectedText();
-  const typed = GameState.getTypedText();
-  const mode = GameState.getMode();
-  const separator = getWordSeparator();
-
-  if (mode === "regular" && typed.length >= expected.length) {
-    return;
-  }
-
-  const nextIndex = typed.length;
-  const expectedChar = expected[nextIndex];
-  const isCorrect = expectedChar !== undefined && char === expectedChar;
-
-  GameState.appendTypedText(char);
-
-  if (
-    mode === "regular" &&
-    GameState.getValidationMode() === "strict" &&
-    char === separator &&
-    isCorrect
-  ) {
-    GameState.setStrictLockIndex(GameState.getTypedText().length);
-  }
-
-  if (isCorrect) {
-    Stats.recordCorrectChar();
-  } else {
-    Stats.recordIncorrectChar();
-    if (mode === "regular") {
-      GameState.markSetMistake();
-    }
-  }
-
-  if (mode === "regular" && isCorrect && char !== separator) {
-    ScoreCalculator.addRegularCharScore(char);
-  }
-
-  syncSpeedMultiplier();
-
-  if (mode === "regular" && GameState.getTypedText().length >= expected.length) {
-    finalizeRegularSet();
-  }
-
-  evaluateRogueProgress();
-}
-
-function finalizeRegularSet(): void {
-  const typed = GameState.getTypedText();
-  const expected = GameState.getExpectedText();
-
-  const isExact = typed === expected;
-  const isFlawless = isExact && GameState.getMistakesInSet() === 0;
-
-  const newFlawlessMultiplier = GameState.registerSetCompletion(isFlawless);
-  ScoreCalculator.setFlawlessMultiplier(newFlawlessMultiplier);
-
-  if (isExact) {
-    ScoreCalculator.addRegularSetBonus(GameState.getWordsPerSet(), isFlawless);
-
-    if (isRogueTab()) {
-      GameState.setQuizFeedback(
-        isFlawless
-          ? `Flawless chain ${GameState.getFlawlessStreak()}`
-          : "Set complete"
-      );
-    } else {
-      GameState.setQuizFeedback(
-        isFlawless
-          ? `Flawless set! streak ${GameState.getFlawlessStreak()}`
-          : "Set complete"
-      );
-    }
-  } else {
-    ScoreCalculator.recordNoGain("set-miss");
-    GameState.setQuizFeedback("Set submitted with mistakes");
-  }
-
-  GameState.resetSetMistakes();
-  GameState.resetStrictLockIndex();
-
-  evaluateRogueProgress();
-
-  if (isRogueTab() && !RogueState.isLevelActive()) {
-    return;
-  }
-
-  const nextPrompt = createRegularPromptForCurrentTab();
-  GameState.setPromptAndExpected(nextPrompt, nextPrompt);
-}
-
-function submitQuizAnswer(): void {
-  if (isRogueTab()) return;
-  if (GameState.getMode() !== "quiz") return;
-
-  const question = GameState.getCurrentQuizQuestion();
-  if (!question) return;
-
-  const typedAnswer = GameState.getTypedText();
-
-  if (typedAnswer.trim().length === 0) {
-    GameState.setQuizFeedback("Type an answer first");
-    renderAll();
-    return;
-  }
-
-  const result = validateQuizAnswer(
-    question,
-    typedAnswer,
-    GameState.getValidationMode()
-  );
-
-  GameState.incrementQuizAnswered(result.isCorrect);
-  GameState.setQuizMinorErrorsLast(result.minorErrors);
-
-  if (result.isCorrect) {
-    const gain = ScoreCalculator.addQuizAnswerScore({
-      difficulty: question.difficulty,
-      usedTip: GameState.getQuizTipUsed(),
-      minorErrors: result.minorErrors,
-    });
-
-    if (result.minorErrors > 0 && GameState.getValidationMode() === "loose") {
-      GameState.setQuizFeedback(
-        `Accepted in loose mode (${result.minorErrors} minor errors) +${gain}`
-      );
-    } else {
-      GameState.setQuizFeedback(`Correct +${gain}`);
-    }
-
-    GameState.setRevealedAnswer("");
-    GameState.clearTypedText();
-
-    quizAutoNextTimeout = window.setTimeout(() => {
-      if (GameState.getMode() !== "quiz") return;
-      loadQuizQuestion();
-      renderAll();
-    }, QUIZ_AUTO_NEXT_MS);
-  } else {
-    ScoreCalculator.recordNoGain("quiz-wrong");
-    GameState.setQuizFeedback("Incorrect. Check revealed syntax and retry.");
-    GameState.setRevealedAnswer(question.answer);
-  }
-
-  syncSpeedMultiplier();
-  renderAll();
-}
-
-function handleBackspace(): void {
-  if (!canTypeIntoPrompt()) return;
-
-  const typed = GameState.getTypedText();
-  if (typed.length === 0) return;
-
-  if (
-    GameState.getMode() === "regular" &&
-    GameState.getValidationMode() === "strict" &&
-    typed.length <= GameState.getStrictLockIndex()
-  ) {
-    GameState.setQuizFeedback("Strict mode: previous words are locked");
-    renderAll();
-    return;
-  }
-
-  GameState.setTypedText(typed.slice(0, -1));
-  Stats.recordBackspace();
-
-  if (GameState.getMode() === "regular") {
-    GameState.markSetMistake();
-  }
-
-  syncSpeedMultiplier();
-  renderAll();
-}
-
-function processInputValue(value: string): void {
-  if (!canTypeIntoPrompt()) {
-    renderAll();
-    return;
-  }
-
-  for (const char of value) {
-    if (char === "\n" || char === "\r") continue;
-    handleTypedCharacter(char);
-  }
-
-  renderAll();
-}
-
-function applyEditedTextFromInput(nextValue: string): void {
-  if (!canTypeIntoPrompt()) {
-    renderAll();
-    return;
-  }
-
-  if (
-    GameState.getMode() === "regular" &&
-    GameState.getValidationMode() === "strict"
-  ) {
-    const strictLockIndex = GameState.getStrictLockIndex();
-    const lockedPrefix = GameState.getTypedText().slice(0, strictLockIndex);
-
-    if (!nextValue.startsWith(lockedPrefix)) {
-      GameState.setQuizFeedback("Strict mode: previous words are locked");
-      renderAll();
-      return;
-    }
-  }
-
-  GameState.setTypedText(nextValue);
-
-  if (GameState.getMode() === "regular") {
-    GameState.markSetMistake();
-  }
-
-  syncSpeedMultiplier();
-
-  if (
-    GameState.getMode() === "regular" &&
-    GameState.getTypedText().length >= GameState.getExpectedText().length
-  ) {
-    finalizeRegularSet();
-    renderAll();
-    return;
-  }
-
-  renderAll();
-}
-
-function resetTrainingRun(): void {
-  clearPendingQuizAutoNext();
-
-  Stats.reset();
-  ScoreCalculator.reset();
-  GameState.resetProgressForNewRun();
-  GameState.setValidationMode("strict");
-
-  if (GameState.getMode() === "quiz") {
-    loadQuizQuestion();
-  } else {
-    loadRegularPrompt();
-  }
-
-  syncSpeedMultiplier();
-  renderAll();
-}
-
-function startRogueRun(): void {
-  clearPendingQuizAutoNext();
-  closeStoreModal();
-
-  Stats.reset();
-  ScoreCalculator.reset();
-  GameState.resetProgressForNewRun();
-  GameState.setMode("regular");
-  GameState.setValidationMode("strict");
-
-  RogueState.startNewRun(ScoreCalculator.getTotalScore());
-  GameState.setQuizFeedback("Rogue run started");
-
-  loadRegularPrompt();
-  syncSpeedMultiplier();
-  refreshStoreModal();
-  renderAll();
-}
-
-function resetCurrentRun(): void {
-  if (isRogueTab()) {
-    startRogueRun();
-    return;
-  }
-
-  resetTrainingRun();
-}
-
-function applySelectedQuizThemes(themes: GameState.QuizTheme[]): void {
-  if (themes.length === 0) {
-    GameState.resetSelectedQuizThemes();
-    saveSelectedQuizThemes(GameState.getSelectedQuizThemes());
-    GameState.setQuizFeedback("No themes selected. Restored all themes.");
-    return;
-  }
-
-  GameState.setSelectedQuizThemes(themes);
-  saveSelectedQuizThemes(GameState.getSelectedQuizThemes());
-}
-
-function downloadTemplateFile(): void {
-  const template = createCustomContentTemplate();
-  const blob = new Blob([JSON.stringify(template, null, 2)], {
-    type: "application/json",
-  });
-
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = objectUrl;
-  anchor.download = "roguetype-custom-template.json";
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(objectUrl);
-
-  GameState.setQuizFeedback("Template downloaded");
-  renderAll();
-}
-
-async function importCustomPackageFile(file: File): Promise<void> {
-  let parsed: unknown;
-
-  try {
-    const text = await file.text();
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    GameState.setQuizFeedback("Import failed: invalid JSON file");
-    renderAll();
-    return;
-  }
-
-  const validation = validateCustomContentPackage(parsed);
-  if (!validation.ok) {
-    GameState.setQuizFeedback(`Import failed: ${validation.error}`);
-    renderAll();
-    return;
-  }
-
-  saveCustomContentPackage(validation.data);
-
-  wordManager.refreshCustomWordsFromStorage();
-  refreshQuizContentFromStorage();
-
-  if (GameState.getMode() === "quiz") {
-    loadQuizQuestion();
-  } else {
-    loadRegularPrompt();
-  }
-
-  const importedWordCount = validation.data.words?.regular.length ?? 0;
-  const importedQuizCount = validation.data.quizzes?.length ?? 0;
-  const quizLabel = importedQuizCount === 1 ? "quiz" : "quizzes";
-
-  GameState.setQuizFeedback(
-    `Imported: ${validation.data.meta.name} (${importedWordCount} words, ${importedQuizCount} ${quizLabel})`
-  );
-  renderAll();
+function isPrintableKey(event: KeyboardEvent): boolean {
+  return event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey;
 }
 
 function setCommandOutput(command: string, result: string): void {
@@ -729,985 +118,1251 @@ function setCommandOutput(command: string, result: string): void {
   commandOutputElement.textContent = `$ ${command}\n${result}`;
 }
 
-function resolveQuizTheme(rawTheme: string): GameState.QuizTheme | null {
-  const normalized = rawTheme.trim().toLowerCase();
+function updateCommandLiveLine(): void {
+  if (!commandLiveElement) return;
 
-  if (normalized === "js" || normalized === "javascript") return "javascript";
-  if (normalized === "py" || normalized === "python") return "python";
-  if (normalized === "bash") return "bash";
-  if (normalized === "sql") return "sql";
-  if (normalized === "sqli" || normalized === "sql-injection") {
-    return "sql-injection";
-  }
-  if (normalized === "git") return "git";
-  if (normalized === "custom") return "custom";
-  if (normalized === "std" || normalized === "standard") return "standard";
-
-  return null;
-}
-
-function parseThemeArgs(rawArgs: string[]): {
-  themes: GameState.QuizTheme[];
-  invalid: string[];
-} {
-  const themeTokens = rawArgs
-    .flatMap((entry) => entry.split(","))
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-
-  const themes: GameState.QuizTheme[] = [];
-  const invalid: string[] = [];
-
-  for (const token of themeTokens) {
-    const theme = resolveQuizTheme(token);
-    if (!theme) {
-      invalid.push(token);
-      continue;
-    }
-
-    if (!themes.includes(theme)) {
-      themes.push(theme);
-    }
+  if (commandMode) {
+    commandLiveElement.textContent = `$ \`${commandBuffer}`;
+    return;
   }
 
-  return { themes, invalid };
+  commandLiveElement.textContent =
+    "$ [typing] Type passage text · Press ` for commands · Ctrl+1..9 use action slots";
 }
 
-function refreshPromptFromCurrentMode(): void {
-  if (GameState.getMode() === "quiz") {
-    loadQuizQuestion();
+function updateCustomContentStatus(): void {
+  if (!customContentStatusElement) return;
+
+  const settings = getGameSettings();
+  const count = settings.custom.entries.length;
+  const sourceName = getCustomContentSourceName();
+  const sourceType = getCustomContentSourceType();
+  const truncatedAfter = getCustomContentTruncatedAfterChapterTitle();
+
+  if (count <= 0) {
+    customContentStatusElement.textContent = "No custom text loaded.";
+    return;
+  }
+
+  if (sourceType === "epub") {
+    const chapters = getCustomContentChapters();
+    const range = getCustomContentChapterRange();
+    const firstChapter = chapters[0]?.id ?? 1;
+    const lastChapter = chapters[chapters.length - 1]?.id ?? firstChapter;
+    const startChapter = range.start ?? firstChapter;
+    const endChapter = range.end ?? lastChapter;
+    const titleSuffix = sourceName ? ` from ${sourceName}` : "";
+    const truncatedSuffix = truncatedAfter
+      ? ` Truncated before chapter: ${truncatedAfter}.`
+      : "";
+    customContentStatusElement.textContent = `${count} entries across ${chapters.length} chapters${titleSuffix}. Range ${startChapter}-${endChapter}.${truncatedSuffix}`;
+    return;
+  }
+
+  if (sourceName) {
+    customContentStatusElement.textContent = `${count} entries loaded from ${sourceName}.`;
+    return;
+  }
+
+  customContentStatusElement.textContent = `${count} custom text entries loaded.`;
+}
+
+function updateCustomChapterRangeControls(): void {
+  if (!customChapterRangeElement || !customChapterStartSelectElement || !customChapterEndSelectElement) {
+    return;
+  }
+
+  const sourceType = getCustomContentSourceType();
+  const chapters = getCustomContentChapters();
+  const showRange = sourceType === "epub" && chapters.length > 0;
+
+  if (lastCustomChapterRangeVisible !== showRange) {
+    customChapterRangeElement.classList.toggle("isHidden", !showRange);
+    lastCustomChapterRangeVisible = showRange;
+  }
+
+  if (!showRange) {
+    if (lastCustomChapterOptionsSignature !== "") {
+      customChapterStartSelectElement.innerHTML = "";
+      customChapterEndSelectElement.innerHTML = "";
+      lastCustomChapterOptionsSignature = "";
+    }
+    return;
+  }
+
+  const optionsSignature = chapters
+    .map((chapter) => `${chapter.id}:${chapter.title}:${chapter.startEntry}:${chapter.endEntry}`)
+    .join("|");
+
+  if (optionsSignature !== lastCustomChapterOptionsSignature) {
+    const optionsHtml = chapters
+      .map((chapter) => `<option value="${chapter.id}">${chapter.id}. ${escapeHtml(chapter.title)}</option>`)
+      .join("");
+    customChapterStartSelectElement.innerHTML = optionsHtml;
+    customChapterEndSelectElement.innerHTML = optionsHtml;
+    lastCustomChapterOptionsSignature = optionsSignature;
+  }
+
+  const range = getCustomContentChapterRange();
+  const fallbackStart = chapters[0].id;
+  const fallbackEnd = chapters[chapters.length - 1].id;
+  const resolvedStart = String(range.start ?? fallbackStart);
+  const resolvedEnd = String(range.end ?? fallbackEnd);
+  const activeElement = document.activeElement;
+
+  if (activeElement !== customChapterStartSelectElement) {
+    if (customChapterStartSelectElement.value !== resolvedStart) {
+      customChapterStartSelectElement.value = resolvedStart;
+    }
+  }
+
+  if (activeElement !== customChapterEndSelectElement) {
+    if (customChapterEndSelectElement.value !== resolvedEnd) {
+      customChapterEndSelectElement.value = resolvedEnd;
+    }
+  }
+
+  const disabled = chapters.length <= 1;
+  if (customChapterStartSelectElement.disabled !== disabled) {
+    customChapterStartSelectElement.disabled = disabled;
+  }
+  if (customChapterEndSelectElement.disabled !== disabled) {
+    customChapterEndSelectElement.disabled = disabled;
+  }
+}
+
+function isEpubFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith(".epub") || file.type === "application/epub+zip";
+}
+
+function isZenMode(): boolean {
+  return getEffectiveGameRules().mode === "zen";
+}
+
+function shouldShowRunSummaryForCurrentState(): boolean {
+  if (isZenMode()) return false;
+  return RogueState.getOperationFailureState();
+}
+
+function updateModeControlsState(): void {
+  const settings = getGameSettings();
+  const rules = getEffectiveGameRules();
+
+  if (gameModeSelectElement) {
+    gameModeSelectElement.value = settings.mode;
+  }
+
+  if (hardcoreToggleElement) {
+    hardcoreToggleElement.checked = settings.hardcoreEnabled;
+  }
+
+  if (soundToggleElement) {
+    soundToggleElement.checked = settings.soundEffectsEnabled;
+  }
+
+  if (customPanelElement) {
+    customPanelElement.classList.toggle("isHidden", false);
+  }
+
+  if (contentModeSelectElement) {
+    contentModeSelectElement.disabled = false;
+  }
+
+  const appElement = document.getElementById("app");
+  if (appElement) {
+    appElement.classList.toggle("isZenMode", rules.mode === "zen");
+    appElement.classList.toggle("isGameMode", rules.mode === "game");
+  }
+
+  const zenHiddenIds = ["hudStrip", "playMeta", "commandDock", "skipOperationBtn"];
+  for (const id of zenHiddenIds) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    node.classList.toggle("isHidden", rules.mode === "zen");
+  }
+
+  const scoreMetricIds = ["runMetric", "bestMetric", "outMetric", "ampMetric", "streakMetric"];
+  for (const id of scoreMetricIds) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    node.classList.toggle("isHidden", !rules.scoreEnabled);
+  }
+
+  if (floatingScriptsElement) {
+    floatingScriptsElement.classList.toggle("isHidden", !rules.itemsShopEnabled);
+  }
+
+  if (floatingUtilityElement) {
+    floatingUtilityElement.classList.toggle("isHidden", !rules.itemsShopEnabled);
+  }
+
+  updateCustomContentStatus();
+  updateCustomChapterRangeControls();
+}
+
+function finalizeRunMetricsIfNeeded(): void {
+  if (completionStatsRecorded) return;
+  const phase = RogueState.getPhase();
+  if (phase !== "game-over" && phase !== "victory") return;
+
+  Stats.stopTimer();
+  recordCompletedRunStats(RogueState.getRunScore(), Stats.getWPM());
+  completionStatsRecorded = true;
+}
+
+function showStoreModal(open: boolean): void {
+  if (!storeOverlayElement) return;
+
+  storeOverlayElement.classList.toggle("isOpen", open);
+  storeOverlayElement.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function showBriefingModal(open: boolean): void {
+  if (!briefingOverlayElement) return;
+
+  briefingOverlayElement.classList.toggle("isOpen", open);
+  briefingOverlayElement.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function showRunSummaryModal(open: boolean): void {
+  if (!runSummaryOverlayElement) return;
+
+  summaryOpen = open;
+  runSummaryOverlayElement.classList.toggle("isOpen", open);
+  runSummaryOverlayElement.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function renderRunSummary(): void {
+  if (
+    !summaryScoreElement ||
+    !summaryWpmElement ||
+    !summaryAccuracyElement ||
+    !summaryTimeElement ||
+    !summaryErrorsElement
+  ) {
+    return;
+  }
+
+  Stats.stopTimer();
+  const zenMode = isZenMode();
+
+  if (summaryScoreStatElement) {
+    summaryScoreStatElement.classList.toggle("isHidden", zenMode);
+  }
+
+  summaryScoreElement.textContent = RogueState.getRunScore().toLocaleString();
+  summaryWpmElement.textContent = String(Stats.getWPM());
+  summaryAccuracyElement.textContent = `${Stats.getAccuracy()}%`;
+  summaryTimeElement.textContent = `${Stats.getElapsedTime().toFixed(1)}s`;
+  summaryErrorsElement.textContent = String(Stats.getIncorrectChars());
+}
+
+function maybeOpenRunSummary(): void {
+  if (summaryOpen) return;
+  if (!shouldShowRunSummaryForCurrentState()) return;
+  if (summaryDismissedForEndState) return;
+
+  renderRunSummary();
+  showRunSummaryModal(true);
+}
+
+function startRun(): void {
+  Stats.reset();
+  Stats.startTimer();
+  RogueState.startNewRun(performance.now());
+  completionStatsRecorded = false;
+  summaryDismissedForEndState = false;
+  showRunSummaryModal(false);
+  showStoreModal(false);
+  briefingOpen = false;
+  briefingOpenedAt = 0;
+  lastBriefedOperationKey = "";
+  briefingRemainingMsSnapshot = 0;
+  queuedAutoUseSlots = [];
+  showBriefingModal(false);
+  commandMode = false;
+  commandBuffer = "";
+  updateCommandLiveLine();
+  renderAll();
+}
+
+function resetRun(): void {
+  Stats.reset();
+  RogueState.resetRunState();
+  completionStatsRecorded = false;
+  summaryDismissedForEndState = false;
+  showRunSummaryModal(false);
+  showStoreModal(false);
+  briefingOpen = false;
+  briefingOpenedAt = 0;
+  lastBriefedOperationKey = "";
+  briefingRemainingMsSnapshot = 0;
+  queuedAutoUseSlots = [];
+  showBriefingModal(false);
+  commandMode = false;
+  commandBuffer = "";
+  updateCommandLiveLine();
+  renderAll();
+}
+
+function updateTimerStrip(): void {
+  if (!timerFillElement || !timerTextElement) return;
+  const rules = getEffectiveGameRules();
+
+  if (!RogueState.isOperationActive()) {
+    timerFillElement.style.width = "0%";
+    timerTextElement.textContent = "-";
+    return;
+  }
+
+  if (!rules.timeEnabled) {
+    timerFillElement.style.width = "0%";
+    timerTextElement.textContent = "∞";
+    return;
+  }
+
+  const remainingMs = briefingOpen
+    ? briefingRemainingMsSnapshot
+    : RogueState.getRemainingMs(performance.now());
+  timerFillElement.style.width = "0%";
+
+  const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  timerTextElement.textContent = String(seconds);
+}
+
+function renderPopups(): void {
+  if (!popupLayerElement) return;
+
+  const popups = RogueState.drainScorePopups();
+  for (const popup of popups) {
+    const node = document.createElement("div");
+    node.className = "scorePopup";
+    node.textContent = `+${Math.round(popup.out)} OUT × ${popup.amp.toFixed(2)} AMP = ${popup.gain.toLocaleString()}`;
+    popupLayerElement.appendChild(node);
+
+    window.setTimeout(() => {
+      node.remove();
+    }, 820);
+  }
+}
+
+function positionPopupLayerAtCursor(): void {
+  if (!popupLayerElement) return;
+
+  const cursorAnchor = document.getElementById("cursorAnchor");
+  const promptBlock = document.getElementById("promptBlock");
+  if (!cursorAnchor || !promptBlock) return;
+
+  const cursorRect = cursorAnchor.getBoundingClientRect();
+  const promptRect = promptBlock.getBoundingClientRect();
+
+  const left = Math.max(0, cursorRect.left - promptRect.left);
+  const top = Math.max(0, cursorRect.top - promptRect.top - 50);
+
+  popupLayerElement.style.left = `${left}px`;
+  popupLayerElement.style.top = `${top}px`;
+}
+
+function keepViewportPinnedToTopOnRoundChange(): void {
+  const phase = RogueState.getPhase();
+  const operationKey = RogueState.isOperationActive()
+    ? `${RogueState.getCurrentSector()}-${RogueState.getCurrentOperationInSector()}`
+    : "";
+
+  const phaseChanged = phase !== lastRenderedPhase;
+  const operationChanged = operationKey !== lastRenderedOperationKey;
+
+  if ((phaseChanged || operationChanged) && window.scrollY > 0) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
+  lastRenderedPhase = phase;
+  lastRenderedOperationKey = operationKey;
+}
+
+function syncStatsPromptSnapshot(): void {
+  if (!RogueState.isOperationActive()) {
+    Stats.updatePromptSnapshot("", "");
+    return;
+  }
+
+  Stats.updatePromptSnapshot(RogueState.getExpectedText(), RogueState.getTypedText());
+}
+
+function renderAll(): void {
+  keepViewportPinnedToTopOnRoundChange();
+  syncStatsPromptSnapshot();
+  finalizeRunMetricsIfNeeded();
+  updateModeControlsState();
+  updateDisplay();
+  updateScoreDisplay();
+  updateTimerStrip();
+  updateCommandLiveLine();
+  positionPopupLayerAtCursor();
+  renderPopups();
+
+  maybeOpenOperationBriefing();
+
+  if (RogueState.isShopOpen()) {
+    refreshStoreModal();
+    showStoreModal(true);
   } else {
-    loadRegularPrompt();
+    showStoreModal(false);
+  }
+
+  const shouldShowSummary = shouldShowRunSummaryForCurrentState();
+  if (!shouldShowSummary && summaryOpen) {
+    showRunSummaryModal(false);
+  }
+  if (!shouldShowSummary) {
+    summaryDismissedForEndState = false;
+  }
+  maybeOpenRunSummary();
+}
+
+function processTypedChar(char: string): void {
+  if (briefingOpen) return;
+  if (!RogueState.isOperationActive()) {
+    return;
+  }
+
+  const now = performance.now();
+  const result = RogueState.typeChar(char, now, Stats.getWPM());
+
+  const timePenaltyMs = result.timePenaltyMs ?? 0;
+  if (timePenaltyMs > 0) {
+    showTimerPenaltyEffect(timePenaltyMs);
+  }
+
+  if (result.accepted && char !== " ") {
+    playLetterThock();
+  }
+
+  if (result.wordCompleted && result.perfectWord) {
+    const ampLevel = result.ampLevel ?? RogueState.getAmpValue();
+    const cleanChain = result.cleanChain ?? RogueState.getCleanChain();
+    playPerfectWordAccent(ampLevel, cleanChain);
+  }
+
+  if (result.accepted && result.correct) {
+    Stats.recordCorrectChar();
+  } else if (!result.correct) {
+    Stats.recordIncorrectChar();
+  }
+
+  RogueState.tryFinalizeIfTargetMet(now);
+}
+
+function showTimerPenaltyEffect(penaltyMs: number): void {
+  if (!timerPenaltyEffectElement) return;
+  if (penaltyMs <= 0) return;
+
+  timerPenaltyEffectElement.textContent = `-${Math.round(penaltyMs / 1000)}`;
+  timerPenaltyEffectElement.classList.remove("isVisible");
+  void timerPenaltyEffectElement.offsetWidth;
+  timerPenaltyEffectElement.classList.add("isVisible");
+}
+
+function processBackspace(): void {
+  if (briefingOpen) return;
+  const result = RogueState.backspace();
+
+  if (result.accepted) {
+    Stats.recordBackspace();
   }
 }
 
-function executeTerminalCommand(rawCommandInput: string): void {
-  const commandText = rawCommandInput.trim();
-  if (commandText.length === 0) {
+function useCommandSlot(slotIndex: number): void {
+  if (briefingOpen) return;
+  const result = RogueState.useCommandSlot(slotIndex);
+  setCommandOutput(`--use ${slotIndex + 1}`, result.message);
+  renderAll();
+}
+
+function collectQueuedAutoUseSlots(): void {
+  if (!briefingAutoActionsElement) {
+    queuedAutoUseSlots = [];
     return;
   }
 
-  const normalizedCommandText = commandText.startsWith("!")
-    ? commandText.slice(1).trim()
-    : commandText;
+  const checkedNodes = briefingAutoActionsElement.querySelectorAll<HTMLInputElement>(
+    "input[data-auto-slot]:checked"
+  );
 
-  if (normalizedCommandText.length === 0) {
-    setCommandOutput(commandText, "Type a command after !. Use !--help.");
-    renderAll();
+  queuedAutoUseSlots = Array.from(checkedNodes)
+    .map((node) => Number(node.dataset.autoSlot ?? "-1"))
+    .filter((slot) => Number.isFinite(slot) && slot >= 0)
+    .sort((a, b) => b - a);
+}
+
+function applyQueuedAutoUseSlots(): void {
+  if (queuedAutoUseSlots.length === 0) return;
+
+  const messages: string[] = [];
+  for (const slot of queuedAutoUseSlots) {
+    const result = RogueState.useCommandSlot(slot);
+    messages.push(`#${slot + 1} ${result.message}`);
+  }
+
+  queuedAutoUseSlots = [];
+  setCommandOutput("auto-activate", messages.join(" | "));
+}
+
+function renderBriefingLoadout(): void {
+  if (!briefingLoadoutElement) return;
+
+  const scripts = RogueState.getScriptLoadout();
+  const commandSlots = RogueState.getCommandSlots();
+  const commandDefs = RogueState.getCommandDefinitions();
+  const patchStacks = RogueState.getPatchStacks();
+  const patchDefs = RogueState.getPatchDefinitions();
+
+  const scriptCards = scripts.map(
+    (script) =>
+      `<article class=\"briefingItem\" title=\"${escapeHtml(script.description)}\"><span class=\"briefingItemIcon\">${getScriptIcon(script.id)}</span><span class=\"briefingItemLabel\">${escapeHtml(script.label)}</span></article>`
+  );
+
+  const actionCards = commandSlots
+    .map((id) => {
+      if (!id) return null;
+      const def = commandDefs[id];
+      return `<article class=\"briefingItem\" title=\"${escapeHtml(def.description)}\"><span class=\"briefingItemIcon\">${getCommandIcon(id)}</span><span class=\"briefingItemLabel\">${escapeHtml(def.label)}</span></article>`;
+    })
+    .filter((entry): entry is string => entry !== null);
+
+  const patchEntries = (Object.keys(patchStacks) as RogueState.PatchId[]).filter(
+    (id) => patchStacks[id] > 0
+  );
+  const patchCards = patchEntries.map((id) => {
+    const def = patchDefs[id];
+    return `<article class=\"briefingItem\" title=\"${escapeHtml(def.description)}\"><span class=\"briefingItemIcon\">${getPatchIcon(id)}</span><span class=\"briefingItemLabel\">${escapeHtml(def.label)} x${patchStacks[id]}</span></article>`;
+  });
+
+  const cards = [...scriptCards, ...actionCards, ...patchCards];
+  if (cards.length === 0) {
+    briefingLoadoutElement.innerHTML =
+      '<article class=\"briefingItem isEmpty\"><span class=\"briefingItemLabel\">No items equipped.</span></article>';
     return;
   }
 
-  const [commandRaw, ...argTokensRaw] = normalizedCommandText.split(/\s+/);
+  briefingLoadoutElement.innerHTML = cards.join("");
+}
+
+function renderBriefingAutoActions(): void {
+  if (!briefingAutoActionsElement) return;
+
+  const slots = RogueState.getCommandSlots();
+  const defs = RogueState.getCommandDefinitions();
+  const rows = slots
+    .map((id, index) => {
+      if (!id) return null;
+      const def = defs[id];
+      return `<label class=\"briefingAutoRow\"><input type=\"checkbox\" data-auto-slot=\"${index}\" /><span class=\"briefingItemIcon\">${getCommandIcon(id)}</span><span class=\"briefingAutoLabel\">Use ${escapeHtml(def.label)} at stage start</span></label>`;
+    })
+    .filter((entry): entry is string => entry !== null);
+
+  if (rows.length === 0) {
+    briefingAutoActionsElement.innerHTML =
+      '<div class=\"briefingAutoEmpty\">No actions available to auto-activate.</div>';
+    return;
+  }
+
+  briefingAutoActionsElement.innerHTML = rows.join("");
+}
+
+function closeOperationBriefing(): void {
+  if (!briefingOpen) return;
+
+  collectQueuedAutoUseSlots();
+  const now = performance.now();
+  const pausedFor = Math.max(0, now - briefingOpenedAt);
+  RogueState.shiftOperationTiming(pausedFor);
+  briefingOpen = false;
+  briefingRemainingMsSnapshot = 0;
+  showBriefingModal(false);
+  applyQueuedAutoUseSlots();
+  renderAll();
+}
+
+function maybeOpenOperationBriefing(): void {
+  if (isZenMode()) return;
+  if (!RogueState.isOperationActive()) return;
+  if (briefingOpen) return;
+
+  const operationKey = `${RogueState.getCurrentSector()}-${RogueState.getCurrentOperationInSector()}`;
+  if (operationKey === lastBriefedOperationKey) {
+    return;
+  }
+
+  const briefing = RogueState.getOperationBriefing();
+  if (!briefing) return;
+
+  lastBriefedOperationKey = operationKey;
+  briefingOpen = true;
+  briefingOpenedAt = performance.now();
+  briefingRemainingMsSnapshot = RogueState.getRemainingMs(briefingOpenedAt);
+
+  if (briefingSubtitleElement) {
+    briefingSubtitleElement.textContent = briefing.label;
+  }
+
+  if (briefingTargetElement) {
+    briefingTargetElement.textContent = briefing.targetScore.toLocaleString();
+  }
+
+  if (briefingTimeElement) {
+    briefingTimeElement.textContent = briefing.timeLimitSec > 0 ? `${briefing.timeLimitSec}s` : "Off";
+  }
+
+  if (briefingSkipElement) {
+    briefingSkipElement.textContent = briefing.canSkip ? "Yes (+3 credits)" : "No";
+  }
+
+  if (briefingDebuffsElement) {
+    if (briefing.firewalls.length === 0) {
+      briefingDebuffsElement.innerHTML =
+        '<article class="briefingDebuffCard"><div class="briefingDebuffName">NONE</div><div class="briefingDebuffDesc">No active challenge on this stage.</div></article>';
+    } else {
+      briefingDebuffsElement.innerHTML = briefing.firewalls
+        .map(
+          (firewall) =>
+            `<article class="briefingDebuffCard"><div class="briefingDebuffName">${escapeHtml(firewall.label)}</div><div class="briefingDebuffDesc">${escapeHtml(firewall.description)}</div></article>`
+        )
+        .join("");
+    }
+  }
+
+  renderBriefingLoadout();
+  renderBriefingAutoActions();
+
+  showBriefingModal(true);
+}
+
+function executeTerminalCommand(rawInput: string): void {
+  const commandText = rawInput.trim();
+  const normalized = commandText.startsWith("`") ? commandText.slice(1).trim() : commandText;
+
+  if (normalized.length === 0) {
+    setCommandOutput(rawInput, "Type a command after `. Use `--help.");
+    return;
+  }
+
+  const [commandRaw, ...args] = normalized.split(/\s+/);
   const command = commandRaw.toLowerCase();
-  const argTokens = argTokensRaw.map((entry) => entry.toLowerCase());
-  let result = "";
 
   if (command === "--help") {
-    result = COMMAND_HELP_TEXT;
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--rogue") {
-    switchMainTab("rogue");
-    result = "Switched to rogue mode.";
-    setCommandOutput(commandText, result);
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--training" || command === "--web") {
-    switchMainTab("training");
-    result = "Switched to training mode.";
-    setCommandOutput(commandText, result);
-    focusInputSoon();
+    setCommandOutput(rawInput, COMMAND_HELP);
     return;
   }
 
   if (command === "--start") {
-    switchMainTab("rogue");
-    startRogueRun();
-    result = "Started a new rogue run.";
-    setCommandOutput(commandText, result);
-    focusInputSoon();
+    startRun();
+    setCommandOutput(rawInput, "Run started.");
     return;
   }
 
   if (command === "--reset") {
-    resetCurrentRun();
-    result = "Run reset.";
-    setCommandOutput(commandText, result);
-    focusInputSoon();
+    resetRun();
+    setCommandOutput(rawInput, "Run reset.");
+    return;
+  }
+
+  if (command === "--skip") {
+    const result = RogueState.skipCurrentOperation(performance.now());
+    setCommandOutput(rawInput, result.message);
+    renderAll();
+    return;
+  }
+
+  if (command === "--shop") {
+    if (!RogueState.isShopOpen()) {
+      setCommandOutput(rawInput, "Workshop is not open.");
+      return;
+    }
+
+    refreshStoreModal();
+    showStoreModal(true);
+    setCommandOutput(rawInput, "Workshop opened.");
+    return;
+  }
+
+  if (command === "--continue") {
+    const result = RogueState.continueFromShop(performance.now());
+    setCommandOutput(rawInput, result.message);
+    renderAll();
+    return;
+  }
+
+  if (command === "--use") {
+    const slotRaw = args[0];
+    const slot = Number(slotRaw);
+
+    if (!Number.isFinite(slot) || slot < 1) {
+      setCommandOutput(rawInput, "Usage: `--use <slot-number>");
+      return;
+    }
+
+    useCommandSlot(slot - 1);
     return;
   }
 
   if (command === "--mode") {
-    const nextMode = argTokens[0];
-
-    if (!nextMode || (nextMode !== "regular" && nextMode !== "quiz")) {
-      result = "Usage: --mode regular|quiz";
-    } else if (isRogueTab() && nextMode === "quiz") {
-      result = "Quiz mode is only available in training tab.";
-    } else if (nextMode === "quiz") {
-      loadQuizQuestion();
-      result = "Mode set to quiz.";
-    } else {
-      loadRegularPrompt();
-      result = "Mode set to regular.";
+    const modeRaw = (args[0] ?? "").toLowerCase();
+    if (modeRaw !== "quotes" && modeRaw !== "books" && modeRaw !== "letters") {
+      setCommandOutput(rawInput, "Usage: `--mode <quotes|books|letters>");
+      return;
     }
 
-    setCommandOutput(commandText, result);
+    const result = RogueState.setPromptContentMode(modeRaw);
+    if (contentModeSelectElement) {
+      contentModeSelectElement.value = RogueState.getPromptContentMode();
+    }
+    setCommandOutput(rawInput, result.message);
     renderAll();
-    focusInputSoon();
     return;
   }
 
-  if (command === "--validation") {
-    const validationMode = argTokens[0];
-
-    if (!validationMode || (validationMode !== "strict" && validationMode !== "loose")) {
-      result = "Usage: --validation strict|loose";
-    } else {
-      GameState.setValidationMode(validationMode);
-      if (validationMode === "strict") {
-        syncStrictLockFromCurrentInput();
-      }
-      result = `Validation set to ${validationMode}.`;
-    }
-
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--difficulty") {
-    const difficulty = argTokens[0];
-
-    if (!difficulty || (difficulty !== "easy" && difficulty !== "medium" && difficulty !== "hard")) {
-      result = "Usage: --difficulty easy|medium|hard";
-    } else {
-      GameState.setRegularDifficulty(difficulty);
-      saveRegularDifficulty(difficulty);
-      if (GameState.getMode() === "regular") {
-        loadRegularPrompt();
-      }
-      result = `Regular difficulty set to ${difficulty}.`;
-    }
-
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--quiz-difficulty") {
-    const difficulty = argTokens[0];
-
-    if (
-      !difficulty ||
-      (difficulty !== "all" &&
-        difficulty !== "easy" &&
-        difficulty !== "medium" &&
-        difficulty !== "hard")
-    ) {
-      result = "Usage: --quiz-difficulty all|easy|medium|hard";
-    } else if (isRogueTab()) {
-      result = "Quiz filters are only available in training tab.";
-    } else {
-      GameState.setQuizDifficultyFilter(difficulty);
-      saveSelectedQuizDifficultyFilter(difficulty);
-      if (GameState.getMode() === "quiz") {
-        loadQuizQuestion();
-      }
-      result = `Quiz difficulty filter set to ${difficulty}.`;
-    }
-
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--theme") {
-    if (isRogueTab()) {
-      result = "Theme filters are only available in training tab.";
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    const action = argTokens[0];
-    const themeArgs = argTokens.slice(1);
-
-    if (!action) {
-      result = "Usage: --theme add|remove|set|reset|list ...";
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    if (action === "list") {
-      const selected = GameState.getSelectedQuizThemes();
-      result = `Themes: ${selected.join(", ")}`;
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    if (action === "reset") {
-      GameState.resetSelectedQuizThemes();
-      saveSelectedQuizThemes(GameState.getSelectedQuizThemes());
-      refreshPromptFromCurrentMode();
-      result = "Themes reset to all.";
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    const parsed = parseThemeArgs(themeArgs);
-
-    if (parsed.invalid.length > 0) {
-      result = `Unknown themes: ${parsed.invalid.join(", ")}`;
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    if (parsed.themes.length === 0) {
-      result = "No valid themes provided.";
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    if (action === "set") {
-      applySelectedQuizThemes(parsed.themes);
-      refreshPromptFromCurrentMode();
-      result = `Themes set: ${GameState.getSelectedQuizThemes().join(", ")}`;
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    if (action === "add") {
-      const nextThemes = [...GameState.getSelectedQuizThemes(), ...parsed.themes];
-      applySelectedQuizThemes(nextThemes);
-      refreshPromptFromCurrentMode();
-      result = `Themes active: ${GameState.getSelectedQuizThemes().join(", ")}`;
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    if (action === "remove") {
-      const removeSet = new Set(parsed.themes);
-      const nextThemes = GameState.getSelectedQuizThemes().filter(
-        (theme) => !removeSet.has(theme)
-      );
-      applySelectedQuizThemes(nextThemes);
-      refreshPromptFromCurrentMode();
-      result = `Themes active: ${GameState.getSelectedQuizThemes().join(", ")}`;
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    result = "Usage: --theme add|remove|set|reset|list ...";
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--next") {
-    if (isRogueTab()) {
-      loadRegularPrompt();
-      result = "Loaded next rogue set.";
-    } else if (GameState.getMode() === "quiz") {
-      loadQuizQuestion();
-      result = "Loaded next quiz question.";
-    } else {
-      loadRegularPrompt();
-      result = "Loaded next regular set.";
-    }
-
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--tip") {
-    if (isRogueTab() || GameState.getMode() !== "quiz") {
-      result = "Tip is available only in training quiz mode.";
-    } else {
-      GameState.setQuizTipVisible(true);
-      GameState.setQuizTipUsed(true);
-      GameState.setQuizFeedback("Tip used (-score modifier)");
-      result = "Tip revealed.";
-    }
-
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--submit") {
-    if (isRogueTab() || GameState.getMode() !== "quiz") {
-      result = "Submit is available only in training quiz mode.";
-      setCommandOutput(commandText, result);
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    submitQuizAnswer();
-    result = "Quiz answer submitted.";
-    setCommandOutput(commandText, result);
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--theme-mode") {
-    const themeArg = argTokens[0];
-
-    if (!themeArg || (themeArg !== "dark" && themeArg !== "bright")) {
-      result = "Usage: --theme-mode dark|bright";
-    } else {
-      applyTheme(themeArg);
-      result = `Theme set to ${themeArg}.`;
-    }
-
-    setCommandOutput(commandText, result);
-    renderAll();
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--template") {
-    downloadTemplateFile();
-    result = "Template download started.";
-    setCommandOutput(commandText, result);
-    focusInputSoon();
-    return;
-  }
-
-  if (command === "--import") {
-    customPackageInputElement?.click();
-    result = "Select a JSON package file to import.";
-    setCommandOutput(commandText, result);
-    focusInputSoon();
-    return;
-  }
-
-  result = `Unknown command "${command}". Use --help.`;
-  setCommandOutput(commandText, result);
-  renderAll();
-  focusInputSoon();
+  setCommandOutput(rawInput, `Unknown command "${command}". Use \`--help.`);
 }
 
-function switchMainTab(tab: GameState.MainTab): void {
-  if (GameState.getMainTab() === tab) return;
-
-  GameState.setMainTab(tab);
-  clearPendingQuizAutoNext();
-
-  if (tab === "rogue") {
-    GameState.setMode("regular");
-
-    if (RogueState.getPhase() === "idle") {
-      startRogueRun();
-      return;
-    }
-
-    if (RogueState.isStoreOpen()) {
-      openStoreModal();
-    } else {
-      closeStoreModal();
-    }
-
-    loadRegularPrompt();
-  } else {
-    closeStoreModal();
-
-    if (GameState.getMode() === "quiz") {
-      loadQuizQuestion();
-    } else {
-      loadRegularPrompt();
-    }
+function refreshStoreModal(): void {
+  if (
+    !storeScriptsElement ||
+    !storeCommandsElement ||
+    !storePatchesElement ||
+    !storeLicenseElement ||
+    !storeCreditsElement ||
+    !storeStatusElement ||
+    !storeCloseButtonElement ||
+    !storeRerollButtonElement
+  ) {
+    return;
   }
 
-  syncSpeedMultiplier();
-  renderAll();
-  focusInputSoon();
+  const offers = RogueState.getShopOffers();
+  const scriptDefs = RogueState.getScriptDefinitions();
+  const commandDefs = RogueState.getCommandDefinitions();
+  const patchDefs = RogueState.getPatchDefinitions();
+  const licenseDefs = RogueState.getLicenseDefinitions();
+
+  storeCreditsElement.textContent = `${RogueState.getCredits()}c`;
+  storeStatusElement.textContent = RogueState.getStatusText();
+
+  const loadout = RogueState.getScriptLoadout();
+  const scriptCap = RogueState.getScriptSlotCapacityValue();
+  const hasZeroDay = loadout.some((script) => script.tier === "zero-day");
+
+  const scriptCards = offers.scripts.map((id) => {
+    const def = scriptDefs[id];
+    const price = RogueState.getScriptPrice(id);
+
+    const noSlots = loadout.length >= scriptCap;
+    const zeroDayBlocked = def.tier === "zero-day" && hasZeroDay;
+    const disabled =
+      RogueState.getCredits() < price || noSlots || zeroDayBlocked ? "disabled" : "";
+
+    return `<article class="storeCard">
+      <div class="storeCardHead">
+        <div class="storeCardTitle">${escapeHtml(def.label)}</div>
+        <div class="storeCardPrice">${price}c</div>
+      </div>
+      <div class="storeCardDesc">${escapeHtml(def.description)}</div>
+      <button class="storeBtn" type="button" data-buy-script="${id}" ${disabled}>Buy Booster</button>
+    </article>`;
+  });
+
+  const commandSlots = RogueState.getCommandSlots();
+  const commandFull = commandSlots.every((slot) => slot !== null);
+
+  const commandCards = offers.commands.map((id) => {
+    const def = commandDefs[id];
+    const price = RogueState.getCommandPrice(id);
+    const disabled = RogueState.getCredits() < price || commandFull ? "disabled" : "";
+
+    return `<article class="storeCard">
+      <div class="storeCardHead">
+        <div class="storeCardTitle">${escapeHtml(def.label)}</div>
+        <div class="storeCardPrice">${price}c</div>
+      </div>
+      <div class="storeCardDesc">${escapeHtml(def.description)}</div>
+      <button class="storeBtn" type="button" data-buy-command="${id}" ${disabled}>Buy Action</button>
+    </article>`;
+  });
+
+  const patchStacks = RogueState.getPatchStacks();
+  const usedPatchTypes = Object.values(patchStacks).filter((count) => count > 0).length;
+  const patchCap = RogueState.getPatchSlotCapacityValue();
+
+  const patchCards = offers.patches.map((id) => {
+    const def = patchDefs[id];
+    const price = RogueState.getPatchPrice(id);
+    const blockedBySlots = patchStacks[id] === 0 && usedPatchTypes >= patchCap;
+    const disabled = RogueState.getCredits() < price || blockedBySlots ? "disabled" : "";
+
+    return `<article class="storeCard">
+      <div class="storeCardHead">
+        <div class="storeCardTitle">${escapeHtml(def.label)}</div>
+        <div class="storeCardPrice">${price}c</div>
+      </div>
+      <div class="storeCardDesc">${escapeHtml(def.description)}</div>
+      <button class="storeBtn" type="button" data-buy-patch="${id}" ${disabled}>Buy Talent</button>
+    </article>`;
+  });
+
+  let licenseCard = '<article class="storeCard isEmpty">No upgrade available.</article>';
+  if (offers.license) {
+    const def = licenseDefs[offers.license];
+    const price = RogueState.getLicensePrice(def.id);
+    const disabled =
+      RogueState.getCredits() < price || RogueState.getShopLicenseBought() ? "disabled" : "";
+
+    licenseCard = `<article class="storeCard">
+      <div class="storeCardHead">
+        <div class="storeCardTitle">${escapeHtml(def.label)}</div>
+        <div class="storeCardPrice">${price}c</div>
+      </div>
+      <div class="storeCardDesc">${escapeHtml(def.description)}</div>
+      <button class="storeBtn" type="button" data-buy-license="${def.id}" ${disabled}>Buy Upgrade</button>
+    </article>`;
+  }
+
+  storeScriptsElement.innerHTML = scriptCards.join("");
+  storeCommandsElement.innerHTML = commandCards.join("");
+  storePatchesElement.innerHTML = patchCards.join("");
+  storeLicenseElement.innerHTML = licenseCard;
+
+  const rerollCost = RogueState.getRerollCost();
+  storeRerollButtonElement.textContent = `REROLL ${rerollCost}c`;
+  storeRerollButtonElement.disabled = RogueState.getCredits() < rerollCost;
+
+  storeCloseButtonElement.textContent = "Start Next Stage";
 }
 
 function bindStoreEvents(): void {
   storeOverlayElement = document.getElementById("storeOverlay");
-  storeItemsListElement = document.getElementById("storeItemsList");
-  storeModulesListElement = document.getElementById("storeModulesList");
-  storeCloseButtonElement = document.getElementById("storeCloseBtn") as
-    | HTMLButtonElement
-    | null;
-  storeCoinsValueElement = document.getElementById("storeCoinsValue");
+  storeScriptsElement = document.getElementById("storeScripts");
+  storeCommandsElement = document.getElementById("storeCommands");
+  storePatchesElement = document.getElementById("storePatches");
+  storeLicenseElement = document.getElementById("storeLicense");
+  storeCreditsElement = document.getElementById("storeCreditsValue");
   storeStatusElement = document.getElementById("storeStatus");
+  storeCloseButtonElement = document.getElementById("storeCloseBtn") as HTMLButtonElement | null;
+  storeRerollButtonElement = document.getElementById("storeRerollBtn") as HTMLButtonElement | null;
 
-  storeItemsListElement?.addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
-    const button = target.closest<HTMLButtonElement>("[data-buy-consumable]");
-    if (!button) return;
 
-    const itemId = button.dataset.buyConsumable as
-      | RogueState.RogueConsumableId
-      | undefined;
+    const buyScriptButton = target.closest<HTMLButtonElement>("[data-buy-script]");
+    if (buyScriptButton) {
+      const id = buyScriptButton.dataset.buyScript as RogueState.ScriptId | undefined;
+      if (!id) return;
+      const result = RogueState.purchaseScript(id);
+      setCommandOutput(`buy ${id}`, result.message);
+      renderAll();
+      return;
+    }
 
-    if (!itemId) return;
+    const buyCommandButton = target.closest<HTMLButtonElement>("[data-buy-command]");
+    if (buyCommandButton) {
+      const id = buyCommandButton.dataset.buyCommand as RogueState.CommandId | undefined;
+      if (!id) return;
+      const result = RogueState.purchaseCommand(id);
+      setCommandOutput(`buy ${id}`, result.message);
+      renderAll();
+      return;
+    }
 
-    const result = RogueState.purchaseConsumable(itemId);
-    GameState.setQuizFeedback(result.message);
-    syncStoreStatusInline(result.message);
-    refreshStoreModal();
-    renderAll();
-    focusInputSoon();
+    const buyPatchButton = target.closest<HTMLButtonElement>("[data-buy-patch]");
+    if (buyPatchButton) {
+      const id = buyPatchButton.dataset.buyPatch as RogueState.PatchId | undefined;
+      if (!id) return;
+      const result = RogueState.purchasePatch(id);
+      setCommandOutput(`buy ${id}`, result.message);
+      renderAll();
+      return;
+    }
+
+    const buyLicenseButton = target.closest<HTMLButtonElement>("[data-buy-license]");
+    if (buyLicenseButton) {
+      const result = RogueState.purchaseLicense();
+      setCommandOutput("buy upgrade", result.message);
+      renderAll();
+      return;
+    }
+
+    const useCommandButton = target.closest<HTMLButtonElement>("[data-use-command-slot]");
+    if (useCommandButton) {
+      const slot = Number(useCommandButton.dataset.useCommandSlot ?? "-1");
+      if (Number.isNaN(slot) || slot < 0) return;
+      useCommandSlot(slot);
+      return;
+    }
+
+    const sellScriptButton = target.closest<HTMLButtonElement>("[data-sell-script]");
+    if (sellScriptButton) {
+      const scriptId = sellScriptButton.dataset.sellScript as RogueState.ScriptId | undefined;
+      if (!scriptId) return;
+      const result = RogueState.sellScript(scriptId);
+      setCommandOutput(`sell ${scriptId}`, result.message);
+      renderAll();
+    }
   });
 
-  storeModulesListElement?.addEventListener("click", (event) => {
-    const target = event.target as HTMLElement;
-    const button = target.closest<HTMLButtonElement>("[data-buy-module]");
-    if (!button) return;
-
-    const moduleId = button.dataset.buyModule as RogueState.RogueModuleId | undefined;
-    if (!moduleId) return;
-
-    const result = RogueState.purchaseModule(moduleId);
-    GameState.setQuizFeedback(result.message);
-    syncStoreStatusInline(result.message);
-    refreshStoreModal();
+  storeRerollButtonElement?.addEventListener("click", () => {
+    const result = RogueState.rerollShopOffers();
+    setCommandOutput("reroll", result.message);
     renderAll();
-    focusInputSoon();
   });
 
   storeCloseButtonElement?.addEventListener("click", () => {
-    if (RogueState.getPhase() === "store") {
-      RogueState.advanceAfterStore(ScoreCalculator.getTotalScore());
-      loadRegularPrompt();
-      closeStoreModal();
-      GameState.setQuizFeedback(RogueState.getStatusText());
-      syncSpeedMultiplier();
-      renderAll();
-      focusInputSoon();
-      return;
-    }
-
-    closeStoreModal();
+    const result = RogueState.continueFromShop(performance.now());
+    setCommandOutput("continue", result.message);
     renderAll();
-    focusInputSoon();
   });
 }
 
-function bindControlButtons(): void {
-  const mainTabRogueBtn = document.getElementById("mainTabRogueBtn");
-  const mainTabTrainingBtn = document.getElementById("mainTabTrainingBtn");
+function bindTopControls(): void {
+  const startRunBtn = document.getElementById("startRunBtn") as HTMLButtonElement | null;
+  const resetRunBtn = document.getElementById("resetRunBtn") as HTMLButtonElement | null;
+  const skipOperationBtn = document.getElementById("skipOperationBtn") as HTMLButtonElement | null;
+  contentModeSelectElement = document.getElementById("contentModeSelect") as HTMLSelectElement | null;
+  gameModeSelectElement = document.getElementById("gameModeSelect") as HTMLSelectElement | null;
+  hardcoreToggleElement = document.getElementById("hardcoreToggle") as HTMLInputElement | null;
+  soundToggleElement = document.getElementById("soundToggle") as HTMLInputElement | null;
+  customPanelElement = document.getElementById("customSettingsPanel");
+  customContentInputElement = document.getElementById("customContentInput") as HTMLInputElement | null;
+  customChapterRangeElement = document.getElementById("customChapterRange");
+  customChapterStartSelectElement = document.getElementById(
+    "customChapterStartSelect"
+  ) as HTMLSelectElement | null;
+  customChapterEndSelectElement = document.getElementById(
+    "customChapterEndSelect"
+  ) as HTMLSelectElement | null;
+  customContentStatusElement = document.getElementById("customContentStatus");
+  customContentClearButtonElement = document.getElementById(
+    "customContentClearBtn"
+  ) as HTMLButtonElement | null;
+  floatingScriptsElement = document.getElementById("floatingScripts");
+  floatingUtilityElement = document.getElementById("floatingUtility");
 
-  const modeRegularBtn = document.getElementById("modeRegularBtn");
-  const modeQuizBtn = document.getElementById("modeQuizBtn");
-  const validationStrictBtn = document.getElementById("validationStrictBtn");
-  const validationLooseBtn = document.getElementById("validationLooseBtn");
-  const regularDifficultyEasyBtn = document.getElementById(
-    "regularDifficultyEasyBtn"
-  );
-  const regularDifficultyMediumBtn = document.getElementById(
-    "regularDifficultyMediumBtn"
-  );
-  const regularDifficultyHardBtn = document.getElementById(
-    "regularDifficultyHardBtn"
-  );
-  const quizDifficultyAllBtn = document.getElementById("quizDifficultyAllBtn");
-  const quizDifficultyEasyBtn = document.getElementById("quizDifficultyEasyBtn");
-  const quizDifficultyMediumBtn = document.getElementById(
-    "quizDifficultyMediumBtn"
-  );
-  const quizDifficultyHardBtn = document.getElementById("quizDifficultyHardBtn");
-  const tipBtn = document.getElementById("tipBtn");
-  const submitBtn = document.getElementById("submitBtn");
-  const nextBtn = document.getElementById("nextBtn");
-  const resetRunBtn = document.getElementById("resetRunBtn");
-  const themeToggleBtn = document.getElementById("themeToggleBtn");
-  const downloadTemplateBtn = document.getElementById("downloadTemplateBtn");
-  const importPackageBtn = document.getElementById("importPackageBtn");
-  const rogueStartBtn = document.getElementById("rogueStartBtn");
-  const rogueResetBtn = document.getElementById("rogueResetBtn");
-  customPackageInputElement = document.getElementById("customPackageInput") as
-    | HTMLInputElement
-    | null;
-
-  const quizThemeButtons = document.querySelectorAll<HTMLButtonElement>(
-    "[data-quiz-theme]"
-  );
-
-  mainTabRogueBtn?.addEventListener("click", () => {
-    switchMainTab("rogue");
-  });
-
-  mainTabTrainingBtn?.addEventListener("click", () => {
-    switchMainTab("training");
-  });
-
-  rogueStartBtn?.addEventListener("click", () => {
-    switchMainTab("rogue");
-    startRogueRun();
-    focusInputSoon();
-  });
-
-  rogueResetBtn?.addEventListener("click", () => {
-    switchMainTab("rogue");
-    startRogueRun();
-    focusInputSoon();
-  });
-
-  modeRegularBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-    loadRegularPrompt();
-    renderAll();
-    focusInputSoon();
-  });
-
-  modeQuizBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-    loadQuizQuestion();
-    renderAll();
-    focusInputSoon();
-  });
-
-  validationStrictBtn?.addEventListener("click", () => {
-    GameState.setValidationMode("strict");
-    syncStrictLockFromCurrentInput();
-    renderAll();
-    focusInputSoon();
-  });
-
-  validationLooseBtn?.addEventListener("click", () => {
-    GameState.setValidationMode("loose");
-    renderAll();
-    focusInputSoon();
-  });
-
-  regularDifficultyEasyBtn?.addEventListener("click", () => {
-    GameState.setRegularDifficulty("easy");
-    saveRegularDifficulty("easy");
-
-    if (GameState.getMode() === "regular") {
-      loadRegularPrompt();
-    }
-
-    renderAll();
-    focusInputSoon();
-  });
-
-  regularDifficultyMediumBtn?.addEventListener("click", () => {
-    GameState.setRegularDifficulty("medium");
-    saveRegularDifficulty("medium");
-
-    if (GameState.getMode() === "regular") {
-      loadRegularPrompt();
-    }
-
-    renderAll();
-    focusInputSoon();
-  });
-
-  regularDifficultyHardBtn?.addEventListener("click", () => {
-    GameState.setRegularDifficulty("hard");
-    saveRegularDifficulty("hard");
-
-    if (GameState.getMode() === "regular") {
-      loadRegularPrompt();
-    }
-
-    renderAll();
-    focusInputSoon();
-  });
-
-  quizDifficultyAllBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-
-    GameState.setQuizDifficultyFilter("all");
-    saveSelectedQuizDifficultyFilter("all");
-
-    if (GameState.getMode() === "quiz") {
-      loadQuizQuestion();
-    }
-
-    renderAll();
-    focusInputSoon();
-  });
-
-  quizDifficultyEasyBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-
-    GameState.setQuizDifficultyFilter("easy");
-    saveSelectedQuizDifficultyFilter("easy");
-
-    if (GameState.getMode() === "quiz") {
-      loadQuizQuestion();
-    }
-
-    renderAll();
-    focusInputSoon();
-  });
-
-  quizDifficultyMediumBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-
-    GameState.setQuizDifficultyFilter("medium");
-    saveSelectedQuizDifficultyFilter("medium");
-
-    if (GameState.getMode() === "quiz") {
-      loadQuizQuestion();
-    }
-
-    renderAll();
-    focusInputSoon();
-  });
-
-  quizDifficultyHardBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-
-    GameState.setQuizDifficultyFilter("hard");
-    saveSelectedQuizDifficultyFilter("hard");
-
-    if (GameState.getMode() === "quiz") {
-      loadQuizQuestion();
-    }
-
-    renderAll();
-    focusInputSoon();
-  });
-
-  quizThemeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      if (isRogueTab()) return;
-
-      const theme = button.dataset.quizTheme as GameState.QuizTheme | undefined;
-      if (!theme) return;
-
-      const currentThemes = GameState.getSelectedQuizThemes();
-      const nextThemes = currentThemes.includes(theme)
-        ? currentThemes.filter((entry) => entry !== theme)
-        : [...currentThemes, theme];
-
-      applySelectedQuizThemes(nextThemes);
-
-      if (GameState.getMode() === "quiz") {
-        loadQuizQuestion();
-      } else {
-        loadRegularPrompt();
-      }
-
-      renderAll();
-      focusInputSoon();
-    });
-  });
-
-  tipBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-    if (GameState.getMode() !== "quiz") return;
-
-    GameState.setQuizTipVisible(true);
-    GameState.setQuizTipUsed(true);
-    GameState.setQuizFeedback("Tip used (-score modifier)");
-    renderAll();
-    focusInputSoon();
-  });
-
-  submitBtn?.addEventListener("click", () => {
-    submitQuizAnswer();
-    focusInputSoon();
-  });
-
-  nextBtn?.addEventListener("click", () => {
-    if (isRogueTab()) return;
-
-    if (GameState.getMode() === "quiz") {
-      loadQuizQuestion();
-    } else {
-      const prompt = wordManager.createRegularPrompt(
-        GameState.getWordsPerSet(),
-        GameState.getRegularDifficulty(),
-        GameState.getSelectedQuizThemes()
-      );
-      GameState.setPromptAndExpected(prompt, prompt);
-      GameState.resetSetMistakes();
-      GameState.resetStrictLockIndex();
-      GameState.setQuizFeedback("Skipped to next set");
-    }
-
-    renderAll();
-    focusInputSoon();
+  startRunBtn?.addEventListener("click", () => {
+    primeGameAudio();
+    startRun();
   });
 
   resetRunBtn?.addEventListener("click", () => {
-    resetCurrentRun();
-    focusInputSoon();
+    primeGameAudio();
+    resetRun();
   });
 
-  themeToggleBtn?.addEventListener("click", () => {
-    const nextTheme = activeTheme === "dark" ? "bright" : "dark";
-    applyTheme(nextTheme);
-    focusInputSoon();
+  skipOperationBtn?.addEventListener("click", () => {
+    primeGameAudio();
+    const result = RogueState.skipCurrentOperation(performance.now());
+    setCommandOutput("skip", result.message);
+    renderAll();
   });
 
-  downloadTemplateBtn?.addEventListener("click", () => {
-    downloadTemplateFile();
-    focusInputSoon();
-  });
+  if (contentModeSelectElement) {
+    contentModeSelectElement.value = RogueState.getPromptContentMode();
+    contentModeSelectElement.addEventListener("change", () => {
+      const rawMode = contentModeSelectElement?.value;
+      if (!rawMode) return;
+      if (rawMode !== "quotes" && rawMode !== "books" && rawMode !== "letters") return;
 
-  importPackageBtn?.addEventListener("click", () => {
-    customPackageInputElement?.click();
-    focusInputSoon();
-  });
-
-  customPackageInputElement?.addEventListener("change", () => {
-    const packageInput = customPackageInputElement;
-    const file = packageInput?.files?.[0];
-    if (!file || !packageInput) return;
-
-    void importCustomPackageFile(file);
-    packageInput.value = "";
-    focusInputSoon();
-  });
-}
-
-function bindCommandInput(): void {
-  commandInputElement = document.getElementById("commandInput") as
-    | HTMLInputElement
-    | null;
-  commandOutputElement = document.getElementById("commandOutput");
-
-  commandInputElement?.addEventListener("focus", () => {
-    syncInlineInputModeFromValue(commandInputElement?.value ?? "");
-  });
-}
-
-function tickRogueLevelState(): void {
-  if (!isRogueTab()) return;
-
-  RogueState.pruneExpiredEffects(performance.now());
-
-  if (!RogueState.isLevelActive()) {
-    return;
+      const result = RogueState.setPromptContentMode(rawMode);
+      setCommandOutput(`mode ${rawMode}`, result.message);
+      renderAll();
+    });
   }
 
-  evaluateRogueProgress();
+  gameModeSelectElement?.addEventListener("change", () => {
+    const nextMode = gameModeSelectElement?.value;
+    if (nextMode !== "game" && nextMode !== "zen") return;
 
-  if (!RogueState.isLevelActive()) {
-    return;
-  }
-
-  const remainingMs = RogueState.getRemainingMs(performance.now());
-  if (remainingMs > 0) {
-    return;
-  }
-
-  const rescued = RogueState.tryTriggerDeusEx(performance.now());
-  if (rescued) {
-    GameState.setQuizFeedback(RogueState.getStatusText());
-    syncSpeedMultiplier();
-    return;
-  }
-
-  RogueState.failLevel();
-  GameState.setQuizFeedback("Run failed. Press Start New Run.");
-}
-
-function handleConsumableHotkey(event: KeyboardEvent): boolean {
-  if (!isRogueTab()) return false;
-  if (!event.ctrlKey) return false;
-  if (event.key !== "1" && event.key !== "2" && event.key !== "3") {
-    return false;
-  }
-
-  event.preventDefault();
-
-  const slotIndex = Number(event.key) - 1;
-  const result = RogueState.activateConsumableSlot(slotIndex, performance.now());
-  GameState.setQuizFeedback(result.message);
-  syncSpeedMultiplier();
-  refreshStoreModal();
-  renderAll();
-  return true;
-}
-
-export function tickGame(): void {
-  tickRogueLevelState();
-  syncSpeedMultiplier();
-  updateScoreDisplay();
-}
-
-export function initInputHandler(): void {
-  inputElement = document.getElementById("commandInput") as HTMLInputElement | null;
-  terminalElement = document.getElementById("typingTerminal");
-
-  if (!inputElement) {
-    throw new Error("command input element not found");
-  }
-
-  wordManager.refreshCustomWordsFromStorage();
-  refreshQuizContentFromStorage();
-
-  bindCommandInput();
-
-  document.addEventListener("click", (event: MouseEvent) => {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest("#terminalCommandWrap")) {
-      return;
-    }
-
-    focusInputSoon();
+    setGameMode(nextMode);
+    updateModeControlsState();
+    setCommandOutput("mode", `Game mode set to ${nextMode}.`);
+    resetRun();
   });
 
-  inputElement.addEventListener("blur", () => {
-    focusInputSoon();
+  hardcoreToggleElement?.addEventListener("change", () => {
+    const checked = Boolean(hardcoreToggleElement?.checked);
+    setHardcoreEnabled(checked);
+    updateModeControlsState();
+    setCommandOutput("hardcore", checked ? "Hardcore enabled." : "Hardcore disabled.");
+    renderAll();
   });
 
-  inputElement.addEventListener("input", (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const value = target.value;
-    syncInlineInputModeFromValue(value);
-
-    if (isCommandModeValue(value)) {
-      return;
-    }
-
-    const typedBefore = GameState.getTypedText();
-
-    if (value.length >= typedBefore.length && value.startsWith(typedBefore)) {
-      const addedText = value.slice(typedBefore.length);
-      if (addedText.length > 0) {
-        processInputValue(addedText);
-      }
-    } else {
-      applyEditedTextFromInput(value);
-    }
-
-    const canonicalValue = GameState.getTypedText();
-    if (target.value !== canonicalValue) {
-      target.value = canonicalValue;
-    }
-    syncInlineInputModeFromValue(target.value);
+  soundToggleElement?.addEventListener("change", () => {
+    const checked = Boolean(soundToggleElement?.checked);
+    setSoundEffectsEnabled(checked);
+    updateModeControlsState();
+    setCommandOutput("sound", checked ? "Sound effects enabled." : "Sound effects disabled.");
+    renderAll();
   });
 
-  inputElement.addEventListener("keydown", (event: KeyboardEvent) => {
-    const currentInput = inputElement;
-    if (!currentInput) return;
+  customChapterStartSelectElement?.addEventListener("change", () => {
+    const start = Number(customChapterStartSelectElement?.value ?? "");
+    const end = Number(customChapterEndSelectElement?.value ?? "");
+    const range = setCustomChapterRange(
+      Number.isFinite(start) ? start : null,
+      Number.isFinite(end) ? end : null
+    );
+    setCommandOutput(
+      "chapter range",
+      `Using chapters ${range.start ?? "-"} to ${range.end ?? "-"}.`
+    );
+    updateModeControlsState();
+    resetRun();
+  });
 
-    const currentValue = currentInput.value;
-    const inCommandMode = isCommandModeValue(currentValue);
+  customChapterEndSelectElement?.addEventListener("change", () => {
+    const start = Number(customChapterStartSelectElement?.value ?? "");
+    const end = Number(customChapterEndSelectElement?.value ?? "");
+    const range = setCustomChapterRange(
+      Number.isFinite(start) ? start : null,
+      Number.isFinite(end) ? end : null
+    );
+    setCommandOutput(
+      "chapter range",
+      `Using chapters ${range.start ?? "-"} to ${range.end ?? "-"}.`
+    );
+    updateModeControlsState();
+    resetRun();
+  });
 
-    if (handleConsumableHotkey(event)) {
-      return;
-    }
+  customContentInputElement?.addEventListener("change", async () => {
+    const file = customContentInputElement?.files?.[0];
+    if (!file) return;
 
-    if (event.key === "Escape") {
-      if (inCommandMode && currentValue.length > 0) {
-        event.preventDefault();
-        currentInput.value = "";
-        syncInlineInputModeFromValue(currentInput.value);
-        return;
-      }
-
-      event.preventDefault();
-
-      if (isStoreModalOpen()) {
-        if (RogueState.getPhase() === "store") {
-          GameState.setQuizFeedback("Store is active. Use Start Next Level to continue.");
-          renderAll();
-          return;
+    try {
+      if (isEpubFile(file)) {
+        setCommandOutput("custom import", `Importing EPUB ${file.name}...`);
+        const result = await importEpubCustomContent(file, 5_000);
+        const storedCount = setCustomContentEntries(result.entries, result.sourceName, {
+          sourceType: "epub",
+          chapters: result.chapters,
+          dedupe: false,
+          truncatedAfterChapterTitle: result.truncatedAfterChapterTitle,
+        });
+        const warningSuffix =
+          result.warnings.length > 0 ? ` ${result.warnings.length} sections skipped.` : "";
+        const truncatedSuffix = result.truncatedAfterChapterTitle
+          ? ` Truncated before chapter: ${result.truncatedAfterChapterTitle}.`
+          : "";
+        setCommandOutput(
+          "custom import",
+          `Loaded ${storedCount} entries from EPUB (${result.chapters.length}/${result.discoveredChapterCount} chapters).${truncatedSuffix}${warningSuffix}`
+        );
+      } else {
+        const text = await file.text();
+        const parsedEntries = parseCustomContentCsv(text);
+        if (parsedEntries.length === 0) {
+          setCommandOutput("custom import", "No valid entries were found in the uploaded file.");
+        } else {
+          const storedCount = setCustomContentEntries(parsedEntries, file.name, {
+            sourceType: "plain",
+            dedupe: true,
+          });
+          setCommandOutput(
+            "custom import",
+            `Loaded ${storedCount} custom entries from ${file.name}.`
+          );
         }
-
-        closeStoreModal();
-        renderAll();
-        currentInput.value = GameState.getTypedText();
-        syncInlineInputModeFromValue(currentInput.value);
-        return;
       }
+    } catch {
+      setCommandOutput("custom import", "Failed to import custom content file.");
+    }
 
-      resetCurrentRun();
-      currentInput.value = GameState.getTypedText();
-      syncInlineInputModeFromValue(currentInput.value);
+    if (customContentInputElement) {
+      customContentInputElement.value = "";
+    }
+
+    updateModeControlsState();
+    resetRun();
+  });
+
+  customContentClearButtonElement?.addEventListener("click", () => {
+    clearCustomContentEntries();
+    setCommandOutput("custom clear", "Custom content cleared.");
+    updateModeControlsState();
+    resetRun();
+  });
+
+  updateModeControlsState();
+}
+
+function bindBriefingEvents(): void {
+  briefingOverlayElement = document.getElementById("briefingOverlay");
+  briefingSubtitleElement = document.getElementById("briefingSubtitle");
+  briefingTargetElement = document.getElementById("briefingTarget");
+  briefingTimeElement = document.getElementById("briefingTime");
+  briefingSkipElement = document.getElementById("briefingSkip");
+  briefingDebuffsElement = document.getElementById("briefingDebuffs");
+  briefingLoadoutElement = document.getElementById("briefingLoadout");
+  briefingAutoActionsElement = document.getElementById("briefingAutoActions");
+  briefingCloseButtonElement = document.getElementById("briefingCloseBtn") as HTMLButtonElement | null;
+
+  briefingCloseButtonElement?.addEventListener("click", () => {
+    closeOperationBriefing();
+  });
+}
+
+function bindRunSummaryEvents(): void {
+  runSummaryOverlayElement = document.getElementById("runSummaryOverlay");
+  summaryScoreStatElement = document.getElementById("summaryScoreStat");
+  summaryScoreElement = document.getElementById("summaryScore");
+  summaryWpmElement = document.getElementById("summaryWpm");
+  summaryAccuracyElement = document.getElementById("summaryAccuracy");
+  summaryTimeElement = document.getElementById("summaryTime");
+  summaryErrorsElement = document.getElementById("summaryErrors");
+  summaryRestartButtonElement = document.getElementById("summaryRestartBtn") as HTMLButtonElement | null;
+  summaryCloseButtonElement = document.getElementById("summaryCloseBtn") as HTMLButtonElement | null;
+
+  summaryRestartButtonElement?.addEventListener("click", () => {
+    primeGameAudio();
+    startRun();
+  });
+
+  summaryCloseButtonElement?.addEventListener("click", () => {
+    summaryDismissedForEndState = true;
+    showRunSummaryModal(false);
+  });
+}
+
+function handleCommandModeKey(event: KeyboardEvent): void {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    commandMode = false;
+    commandBuffer = "";
+    updateCommandLiveLine();
+    renderAll();
+    return;
+  }
+
+  if (event.key === "Enter") {
+    event.preventDefault();
+    const commandText = `\`${commandBuffer}`;
+    commandMode = false;
+    commandBuffer = "";
+    executeTerminalCommand(commandText);
+    updateCommandLiveLine();
+    renderAll();
+    return;
+  }
+
+  if (event.key === "Backspace") {
+    event.preventDefault();
+    commandBuffer = commandBuffer.slice(0, -1);
+    updateCommandLiveLine();
+    renderAll();
+    return;
+  }
+
+  if (isPrintableKey(event)) {
+    event.preventDefault();
+    commandBuffer += event.key;
+    updateCommandLiveLine();
+    renderAll();
+  }
+}
+
+function bindKeyboardCapture(): void {
+  document.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (isEditableTarget(event.target)) {
+      return;
+    }
+
+    primeGameAudio();
+
+    if (summaryOpen) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        summaryDismissedForEndState = true;
+        showRunSummaryModal(false);
+      }
+      return;
+    }
+
+    if (briefingOpen) {
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        closeOperationBriefing();
+      }
+      return;
+    }
+
+    if (!isZenMode() && event.ctrlKey && event.key >= "1" && event.key <= "9") {
+      event.preventDefault();
+      const slot = Number(event.key) - 1;
+      useCommandSlot(slot);
+      return;
+    }
+
+    if (!isZenMode() && commandMode) {
+      handleCommandModeKey(event);
+      return;
+    }
+
+    if (!isZenMode() && event.key === "`") {
+      event.preventDefault();
+      commandMode = true;
+      commandBuffer = "";
+      updateCommandLiveLine();
+      renderAll();
       return;
     }
 
     if (event.key === "Backspace") {
-      if (inCommandMode) {
-        return;
-      }
-
-      const selectionStart = currentInput.selectionStart ?? currentValue.length;
-      const selectionEnd = currentInput.selectionEnd ?? currentValue.length;
-      const hasSelection = selectionStart !== selectionEnd;
-      const caretAtEnd =
-        selectionStart === currentValue.length &&
-        selectionEnd === currentValue.length;
-
-      if (hasSelection || !caretAtEnd) {
-        return;
-      }
-
       event.preventDefault();
-      handleBackspace();
-      currentInput.value = GameState.getTypedText();
-      syncInlineInputModeFromValue(currentInput.value);
+      processBackspace();
+      renderAll();
       return;
     }
 
-    if (event.key === "Enter") {
-      if (inCommandMode) {
+    if (event.key === "Escape") {
+      if (RogueState.isShopOpen()) {
         event.preventDefault();
-        executeTerminalCommand(currentValue);
-        currentInput.value = "";
-        syncInlineInputModeFromValue(currentInput.value);
-        focusInputSoon();
-        return;
-      }
-
-      if (GameState.getMode() === "quiz" && !isRogueTab()) {
-        event.preventDefault();
-        submitQuizAnswer();
-        currentInput.value = GameState.getTypedText();
-        syncInlineInputModeFromValue(currentInput.value);
+        showStoreModal(true);
       }
       return;
     }
 
-    if (event.key === "Tab") {
+    if (isPrintableKey(event)) {
       event.preventDefault();
-      focusInputSoon();
-      return;
+      processTypedChar(event.key);
+      renderAll();
     }
   });
+}
+
+export function tickGame(): void {
+  if (!briefingOpen) {
+    RogueState.tick(performance.now());
+  }
+  renderAll();
+}
+
+export function initInputHandler(): void {
+  commandOutputElement = document.getElementById("commandOutput");
+  commandLiveElement = document.getElementById("commandLive");
+  popupLayerElement = document.getElementById("scorePopupLayer");
+  timerFillElement = document.getElementById("timerFill");
+  timerTextElement = document.getElementById("timerText");
+  timerPenaltyEffectElement = document.getElementById("timerPenaltyEffect");
+
+  if (!commandOutputElement || !commandLiveElement || !popupLayerElement) {
+    throw new Error("Input handler elements not found");
+  }
 
   bindStoreEvents();
-  bindControlButtons();
-  restoreTheme();
-  restoreQuizThemes();
-  restoreDifficultyPreferences();
+  bindBriefingEvents();
+  bindRunSummaryEvents();
+  bindTopControls();
+  bindKeyboardCapture();
 
-  GameState.setMainTab("rogue");
-  startRogueRun();
-  inputElement.focus();
-  syncInlineInputModeFromValue(inputElement.value);
+  setCommandOutput("ready", "Use `--start to begin a run.");
+  updateCommandLiveLine();
+  renderAll();
 }

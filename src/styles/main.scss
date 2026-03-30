@@ -1,7 +1,4 @@
-@use "variables" as *;
 @use "typography";
-@use "game/typing-area";
-@use "game/score-display";
 
 *,
 *::before,
@@ -16,65 +13,252 @@ body {
 }
 
 :root {
-  --background0: #010101;
-  --background1: #050505;
-  --background2: #26334b;
-  --background3: #384752;
-  --foreground0: #e6eaee;
-  --foreground1: #8cbae1;
-  --foreground2: #71aada;
+  --bg: #11151b;
+  --panel: rgba(20, 25, 33, 0.9);
+  --panel-strong: rgba(28, 35, 46, 0.96);
+  --border: rgba(143, 167, 191, 0.18);
+  --text-primary: #e6edf5;
+  --text-dim: #96a4b5;
+  --accent: #76d0a7;
+  --accent-soft: rgba(118, 208, 167, 0.18);
+  --cursor: #67b9ff;
+  --danger: #ff8b8b;
+  --warning: #ffcd73;
 }
 
 body {
-  --box-border-color: var(--background2);
-  --box-rounded-radius: 8px;
-  --box-border-width: 1px;
-  --box-double-border-width: 1px;
   margin: 0;
-  background-color: var(--background0);
-  color: var(--foreground0);
-  font-family: "Cascadia Mono", "JetBrains Mono", "Fira Code", monospace;
-  line-height: 1.4;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(103, 185, 255, 0.12), transparent 35%),
+    linear-gradient(180deg, #0d1117 0%, var(--bg) 100%);
+  color: var(--text-primary);
+  font-family: "JetBrains Mono", "IBM Plex Mono", "Cascadia Mono", monospace;
+  line-height: 1.35;
 }
 
 #app {
   min-height: 100vh;
-  max-width: 170ch;
-  margin: 0 auto;
-  padding: 1lh 1ch;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
 }
 
-#layoutShell {
-  padding: 1ch;
-  background-color: color-mix(in srgb, var(--background0) 96%, transparent);
+#typingApp {
+  width: min(100%, 1100px);
+  display: grid;
+  gap: 1.5rem;
+  outline: none;
 }
 
-[box-] {
-  --box-border-color: var(--background2);
-}
-
-[box-]:hover {
-  --box-border-color: var(--foreground2);
-}
-
-[box-]:focus-within {
-  --box-border-color: var(--foreground1);
+button {
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text-primary);
+  font: inherit;
+  border-radius: 999px;
+  padding: 0.78rem 1.05rem;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
 }
 
 button {
   cursor: pointer;
 }
 
-button[box-]:focus-visible {
-  --background1: var(--background2);
+button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(118, 208, 167, 0.45);
+  background: rgba(39, 48, 62, 0.98);
 }
 
-@media (max-width: 760px) {
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.heroPanel,
+.typingPanel {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px);
+}
+
+.heroPanel {
+  padding: 1.5rem 1.6rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.65rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 3vw, 3.2rem);
+}
+
+.subtitle {
+  margin: 0.8rem 0 0;
+  max-width: 72ch;
+  color: var(--text-dim);
+}
+
+.typingPanel {
+  padding: 1.35rem;
+}
+
+.toolbarRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.3rem;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.statusText,
+.hintRow {
+  color: var(--text-dim);
+}
+
+.promptContent {
+  min-height: 10.5rem;
+  padding: 1.6rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: rgba(11, 16, 22, 0.92);
+  font-size: clamp(1.25rem, 2vw, 1.8rem);
+  line-height: 2;
+  letter-spacing: 0.02em;
+  word-break: break-word;
+}
+
+.promptWord {
+  white-space: nowrap;
+}
+
+.promptChar {
+  position: relative;
+}
+
+.promptCharPending {
+  color: var(--text-dim);
+}
+
+.promptCharCorrect {
+  color: var(--text-primary);
+}
+
+.promptCharIncorrect {
+  color: var(--danger);
+  background: rgba(255, 139, 139, 0.12);
+}
+
+.promptSpace {
+  white-space: pre;
+}
+
+.promptCharActive::before,
+.cursorEndAnchor::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 2px;
+  height: 1.3em;
+  transform: translateY(-50%);
+  background: var(--cursor);
+  box-shadow: 0 0 16px rgba(103, 185, 255, 0.6);
+  animation: blink 1s step-end infinite;
+}
+
+.cursorEndAnchor {
+  position: relative;
+  display: inline-block;
+  width: 0;
+  height: 1.3em;
+  vertical-align: -0.2em;
+}
+
+.hintRow {
+  margin-top: 0.85rem;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1.35rem;
+}
+
+.metricCard {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(12, 18, 25, 0.88);
+}
+
+.metricLabel {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metricValue {
+  font-size: 1.45rem;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 900px) {
   #app {
-    padding: 0.7rem;
+    padding: 1rem;
   }
 
-  #layoutShell {
-    padding: 0.75ch;
+  .toolbarRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .typingPanel,
+  .heroPanel {
+    padding: 1rem;
+    border-radius: 18px;
+  }
+
+  .promptContent {
+    min-height: 13rem;
+    padding: 1rem;
+    font-size: 1.15rem;
+  }
+
+  .metricsGrid {
+    grid-template-columns: 1fr;
   }
 }

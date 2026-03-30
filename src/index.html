@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-webtui-theme="dark">
+<html lang="en" data-webtui-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,149 +7,50 @@
   </head>
   <body>
     <div id="app">
-      <div id="layoutShell" box-="square">
-        <div id="layoutGrid">
-          <aside class="sideColumn">
-            <section class="panel" box-="square" shear-="top">
-              <h2 class="panelTitle">Session</h2>
-              <div class="kvRow">
-                <span id="modeLabel">Mode</span><span id="modeValue">Regular</span>
-              </div>
-              <div class="kvRow">
-                <span id="validationLabel">Validation</span><span id="validationValue">Strict</span>
-              </div>
-              <div class="kvRow">
-                <span id="setStatusLabel">Set Progress</span><span id="setStatusValue">0/10</span>
-              </div>
-              <div class="kvRow">
-                <span id="accuracyLabel">Accuracy</span><span id="accuracyValue">100%</span>
-              </div>
-              <div class="kvRow"><span id="statusLabel">Status</span><span id="statusLine">Ready</span></div>
-            </section>
+      <main id="typingApp" tabindex="0">
+        <section class="heroPanel">
+          <p class="eyebrow">Clean branch · typing only</p>
+          <h1>RogueType</h1>
+          <p class="subtitle">The roguelike shell is stripped away here: no menus, no score economy, no items, no countdowns.</p>
+        </section>
 
-            <section class="panel" box-="square" shear-="top">
-              <h2 class="panelTitle">Run Intel</h2>
-              <div class="kvRow"><span id="categoryLabel">Category</span><span id="categoryValue">Text</span></div>
-              <div class="kvRow"><span id="difficultyLabel">Difficulty</span><span id="difficultyValue">-</span></div>
-              <div class="kvRow"><span id="quizStatsLabel">Quiz Correct</span><span id="quizStatsValue">0/0</span></div>
-              <div class="kvRow"><span id="themeCountLabel">Themes</span><span id="themeCountValue">5/5</span></div>
-              <div class="kvRow"><span id="flawlessStreakLabel">Flawless Streak</span><span id="flawlessStreakValue">0</span></div>
-              <div class="menuSectionLabel">Consumable Slots</div>
-              <pre id="rogueItemSlots" class="slotBlock">[1] Empty
-[2] Empty
-[3] Empty</pre>
-              <div class="menuSectionLabel">Module Slots</div>
-              <pre id="rogueModuleSlots" class="slotBlock">[1] Empty
-[2] Empty
-[3] Empty</pre>
-              <div class="menuSectionLabel">Mutator</div>
-              <pre id="rogueMutatorValue" class="slotBlock">Start mutator: Speed x2, separators become underscores</pre>
-            </section>
-
-            <section class="panel" box-="square" shear-="top">
-              <h2 class="panelTitle">Commands</h2>
-              <p class="smallText">
-                Use inline commands in the terminal bar. Start with <code>!--help</code>.
-              </p>
-              <p class="smallText">
-                In command mode (`!` as first character), help and command output are shown in the lower terminal pane.
-              </p>
-            </section>
-          </aside>
-
-          <main id="centerColumn">
-            <section id="typingTerminal" box-="square" shear-="both">
-              <header id="terminalHeader">
-                <div id="brandingBlock">
-                  <pre id="asciiLogo" aria-label="Rogue Type ASCII logo">____   ___   ____ _   _ _____      _____ _   _ ____  _____
-|  _ \ / _ \ / ___| | | | ____|    |_   _| | | |  _ \| ____|
-| |_) | | | | |  _| | | |  _| _____ | | | | | | |_) |  _|
-|  _ &lt;| |_| | |_| | |_| | |__|_____| | | | |_| |  __/| |___
-|_| \_\\___/ \____|\___/|_____|      |_|  \___/|_|   |_____|</pre>
-                </div>
-                <div id="terminalMeta">
-                  <div id="terminalDots">
-                    <span class="dot"></span>
-                    <span class="dot"></span>
-                    <span class="dot"></span>
-                  </div>
-                  <div id="promptTitle">REGULAR MODE</div>
-                </div>
-              </header>
-
-              <section id="promptBlock">
-                <div id="promptContent"></div>
-                <div id="quizTip" class="subtleMessage"></div>
-                <div id="quizFeedback" class="subtleMessage"></div>
-                <div id="answerReveal" class="subtleMessage"></div>
-              </section>
-
-              <section id="terminalCommandWrap">
-                <label id="commandPromptLabel" for="commandInput">$</label>
-                <input
-                  id="commandInput"
-                  type="text"
-                  autocomplete="off"
-                  autocapitalize="off"
-                  autocorrect="off"
-                  spellcheck="false"
-                  placeholder="Type prompt text or !--help"
-                />
-              </section>
-
-              <section id="hudStrip">
-                <span class="metricInline"><span class="metricLabel">Score</span><span id="scoreValue" class="metricValue scoreValue">0</span></span>
-                <span class="metricInline"><span class="metricLabel">WPM</span><span id="wpmValue" class="metricValue">0</span></span>
-                <span class="metricInline"><span class="metricLabel">Speed</span><span id="speedMultiValue" class="metricValue">1.00x</span></span>
-                <span class="metricInline"><span class="metricLabel">Flawless</span><span id="flawlessMultiValue" class="metricValue">1.00x</span></span>
-                <span class="metricInline"><span class="metricLabel">Total</span><span id="totalMultiValue" class="metricValue">1.00x</span></span>
-                <span class="metricInline"><span class="metricLabel">Gain</span><span id="lastGainValue" class="metricValue">+0</span></span>
-              </section>
-
-              <section id="terminalBashPane">
-                <pre id="terminalBashHelp" class="slotBlock commandBlock">!--help
-!--rogue / !--training
-!--mode regular|quiz
-!--validation strict|loose
-!--difficulty easy|medium|hard
-!--quiz-difficulty all|easy|medium|hard
-!--theme add|remove|set|reset|list
-!--next !--tip !--submit !--reset !--start
-!--theme-mode dark|bright
-!--template !--import</pre>
-                <pre id="commandOutput" class="slotBlock commandBlock">$ ready</pre>
-              </section>
-            </section>
-          </main>
-        </div>
-      </div>
-
-      <div id="storeOverlay" aria-hidden="true">
-        <section id="storeModal" box-="square" shear-="top">
-          <header id="storeHeader">
-            <div>
-              <h2 id="storeTitle">Rogue Store</h2>
-              <div id="storeCoinsLine">Coins: <span id="storeCoinsValue">0</span></div>
+        <section class="typingPanel" aria-label="Typing practice">
+          <div class="toolbarRow">
+            <div id="statusText" class="statusText">Type anywhere to begin. Press Esc for a new passage.</div>
+            <div class="toolbarActions">
+              <button id="newPassageBtn" type="button">New passage</button>
+              <button id="resetSessionBtn" type="button">Reset session</button>
             </div>
-            <button id="storeCloseBtn" type="button" box-="square">Start Next Level</button>
-          </header>
-
-          <div class="storeGrid">
-            <section class="storeColumn">
-              <h3 class="storeSectionTitle">Consumables</h3>
-              <div id="storeItemsList" class="storeList"></div>
-            </section>
-            <section class="storeColumn">
-              <h3 class="storeSectionTitle">Modules</h3>
-              <div id="storeModulesList" class="storeList"></div>
-            </section>
           </div>
 
-          <div id="storeStatus" class="subtleMessage">Buy items and modules before the next level.</div>
-        </section>
-      </div>
+          <div id="promptContent" class="promptContent" aria-live="polite"></div>
 
-      <input id="customPackageInput" type="file" accept="application/json" />
+          <div class="hintRow">Backspace edits · Enter inserts a space · Esc jumps to another passage</div>
+
+          <section class="metricsGrid" aria-label="Typing stats">
+            <article class="metricCard">
+              <span class="metricLabel">Progress</span>
+              <strong id="progressValue" class="metricValue">0%</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">Completed</span>
+              <strong id="completedValue" class="metricValue">0</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">Accuracy</span>
+              <strong id="accuracyValue" class="metricValue">100%</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">WPM</span>
+              <strong id="wpmValue" class="metricValue">0</strong>
+            </article>
+            <article class="metricCard">
+              <span class="metricLabel">Raw WPM</span>
+              <strong id="rawWpmValue" class="metricValue">0</strong>
+            </article>
+          </section>
+        </section>
+      </main>
     </div>
 
     <script type="module" src="./index.ts"></script>
